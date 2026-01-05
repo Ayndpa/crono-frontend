@@ -23,6 +23,20 @@ interface AppProps {
   toggleTheme: () => void;
 }
 
+// 定义样式
+const useStyles = makeStyles({
+  dialogSurface: {
+    height: '88vh',
+    width: '92vw',
+    maxWidth: 'none',
+  },
+  dialogBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+  },
+});
+
 function App({ isDark, toggleTheme }: AppProps) {
   const {
     articles,
@@ -34,20 +48,6 @@ function App({ isDark, toggleTheme }: AppProps) {
     fetchArticlesByFeed,
     refetchArticlesFromBackend,
   } = useRSSData(); // 使用自定义 Hook
-
-  // 定义样式
-  const useStyles = makeStyles({
-    dialogSurface: {
-      height: '88vh',
-      width: '92vw',
-      maxWidth: 'none',
-    },
-    dialogBody: {
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%',
-    },
-  });
 
   const styles = useStyles();
 
@@ -81,7 +81,7 @@ function App({ isDark, toggleTheme }: AppProps) {
             </DialogTitle>
             <ArticleReader
               selectedArticle={selectedArticle}
-              onToggleStar={() => {}}
+              onToggleStar={() => { }}
             />
           </DialogBody>
         </DialogSurface>

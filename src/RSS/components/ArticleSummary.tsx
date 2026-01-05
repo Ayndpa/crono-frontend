@@ -21,73 +21,75 @@ interface ArticleSummaryProps {
 
 // 1. 使用 makeStyles 定义样式
 const useStyles = makeStyles({
-    root: {
-        ...shorthands.margin('16px', '0'),
-        ...shorthands.padding('16px'),
-        ...shorthands.border('1px', 'solid'),
-        boxShadow: 'var(--shadow-8)',
-        width: '100%',
-        boxSizing: 'border-box',
-    },
     loadingContainer: {
         display: 'flex',
         alignItems: 'center',
         ...shorthands.gap('8px'),
         ...shorthands.padding('16px', '0'),
     },
-    divider: {
-        ...shorthands.margin('12px', '0'),
-    },
     markdownContainer: {
-        whiteSpace: 'pre-wrap',
+        // 移除 whiteSpace: 'pre-wrap'，交给 ReactMarkdown 处理
     },
     // Markdown 组件样式
     markdownText: {
-        marginBottom: '8px',
-        lineHeight: '1.5',
+        marginBottom: '12px',
+        lineHeight: '1.6',
+        color: 'var(--colorNeutralForeground1)',
     },
     markdownHeading: {
-        marginTop: '16px',
-        marginBottom: '8px',
-    },
-    markdownH2: {
-        marginTop: '14px',
-        marginBottom: '7px',
-    },
-    markdownH3: {
-        marginTop: '12px',
-        marginBottom: '6px',
+        marginTop: '20px',
+        marginBottom: '10px',
+        color: 'var(--colorNeutralForeground1)',
     },
     markdownList: {
-        listStyleType: 'disc',
-        ...shorthands.padding('0', '0', '0', '20px'),
+        ...shorthands.padding('0', '0', '0', '24px'),
+        marginBottom: '12px',
     },
     markdownListItem: {
-        ...shorthands.margin('0', '0', '0', '20px'),
-        marginBottom: '4px',
-        lineHeight: '1.5',
+        marginBottom: '6px',
+        lineHeight: '1.6',
+        '& p': {
+            marginBottom: '4px',
+        }
     },
     markdownLink: {
+        color: 'var(--colorBrandForegroundLink)',
         textDecorationLine: 'underline',
+        '&:hover': {
+            color: 'var(--colorBrandForegroundLinkHover)',
+        }
     },
     markdownCodeBlock: {
-        ...shorthands.padding('8px'),
-        ...shorthands.borderRadius('4px'),
+        ...shorthands.padding('12px'),
+        ...shorthands.borderRadius('6px'),
+        backgroundColor: 'var(--colorNeutralBackground3)',
+        border: '1px solid var(--colorNeutralStroke2)',
         overflowX: 'auto',
-        fontSize: '0.9em',
+        fontSize: '13px',
+        fontFamily: 'monospace',
+        ...shorthands.margin('12px', '0'),
     },
     markdownInlineCode: {
-        ...shorthands.padding('2px', '4px'),
-        ...shorthands.borderRadius('3px'),
+        ...shorthands.padding('2px', '6px'),
+        ...shorthands.borderRadius('4px'),
+        backgroundColor: 'var(--colorNeutralBackground3)',
+        color: 'var(--colorNeutralForeground2)',
         fontSize: '0.9em',
+        fontFamily: 'monospace',
     },
     markdownBlockquote: {
         borderLeftStyle: 'solid',
         borderLeftWidth: '4px',
-        ...shorthands.padding('0', '0', '0', '12px'),
-        ...shorthands.margin('0', '0', '12px', '0'),
+        borderLeftColor: 'var(--colorNeutralStroke1)',
+        ...shorthands.padding('8px', '0', '8px', '16px'),
+        ...shorthands.margin('12px', '0'),
+        backgroundColor: 'var(--colorNeutralBackground2)',
+        color: 'var(--colorNeutralForeground2)',
+        fontStyle: 'italic',
     },
     initialText: {
+        color: 'var(--colorNeutralForeground4)',
+        fontStyle: 'italic',
     },
 });
 
@@ -178,14 +180,14 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article }) => {
                         components={{
                             p: ({ node, ...props }) => <Text as="p" className={styles.markdownText} {...props} />,
                             h1: ({ node, ...props }) => <Text as="h1" size={700} weight="bold" className={styles.markdownHeading} {...props} />,
-                            h2: ({ node, ...props }) => <Text as="h2" size={600} weight="bold" className={styles.markdownH2} {...props} />,
-                            h3: ({ node, ...props }) => <Text as="h3" size={500} weight="bold" className={styles.markdownH3} {...props} />,
+                            h2: ({ node, ...props }) => <Text as="h2" size={600} weight="bold" className={styles.markdownHeading} {...props} />,
+                            h3: ({ node, ...props }) => <Text as="h3" size={500} weight="bold" className={styles.markdownHeading} {...props} />,
                             li: ({ node, ...props }) => <li className={styles.markdownListItem} {...props} />,
                             ul: ({ node, ...props }) => <ul className={styles.markdownList} {...props} />,
                             ol: ({ node, ...props }) => <ol className={styles.markdownList} {...props} />,
                             strong: ({ node, ...props }) => <Text as="strong" weight="bold" {...props} />,
                             em: ({ node, ...props }) => <Text as="em" italic {...props} />,
-                            a: ({ node, ...props }) => <a className={styles.markdownLink} {...props} />,
+                            a: ({ node, ...props }) => <a className={styles.markdownLink} target="_blank" rel="noopener noreferrer" {...props} />,
                             code: ({ node, inline, className, children, ...props }: { node?: any; inline?: boolean; className?: string; children?: React.ReactNode;[key: string]: any }) => {
                                 const match = /language-(\w+)/.exec(className || '');
                                 return !inline && match ? (

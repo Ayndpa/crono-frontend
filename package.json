@@ -10,9 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fluentui/react-components": "^9.68.3",
-    "@fluentui/react-hooks": "^8.8.19",
-    "@fluentui/react-icons": "^2.0.307",
+    "@fluentui/react-components": "^9.72.9",
+    "@fluentui/react-hooks": "^8.10.2",
+    "@fluentui/react-icons": "^2.0.316",
     "axios": "^1.11.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

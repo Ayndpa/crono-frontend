@@ -61,14 +61,48 @@ const useStyles = makeStyles({
     position: 'absolute',
     top: '60px', // 根据实际布局调整位置
     right: '20px',
-    width: '400px',
     display: 'flex',
     flexDirection: 'column',
-    maxHeight: 'calc(100% - 100px)',
     zIndex: 100, // 确保在最上层
     backgroundColor: 'var(--colorNeutralBackground1)',
-    borderRadius: '8px',
-    boxShadow: '0 4px 12px var(--color-neutral-shadow-ambient)',
+    borderRadius: '12px',
+    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08)',
+    border: '1px solid var(--colorNeutralStroke1)',
+    overflow: 'hidden',
+  },
+  resizeHandle: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: '15px',
+    height: '15px',
+    cursor: 'nwse-resize',
+    background: 'linear-gradient(135deg, transparent 50%, var(--colorNeutralStroke1) 50%)',
+    borderBottomRightRadius: '12px',
+  },
+  resizeHandleLeft: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: '10px',
+    height: '100%',
+    cursor: 'ew-resize',
+  },
+  resizeHandleRight: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: '10px',
+    height: '100%',
+    cursor: 'ew-resize',
+  },
+  resizeHandleBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '10px',
+    cursor: 'ns-resize',
   },
 });
 
@@ -78,6 +112,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
   const styles = useStyles();
   const [showSummary, setShowSummary] = useState(false);
   const [dragPosition, setDragPosition] = useState({ top: 60, left: 20 });
+  const [dialogSize, setDialogSize] = useState({ width: 400, height: 500 });
   const dragRef = useRef<HTMLDivElement | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -92,6 +127,32 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
       setDragPosition({
         top: startTop + deltaY,
         left: startLeft + deltaX,
+      });
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = dialogSize.width;
+    const startHeight = dialogSize.height;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      setDialogSize({
+        width: Math.max(300, startWidth + deltaX),
+        height: Math.max(200, startHeight + deltaY),
       });
     };
 
@@ -136,14 +197,24 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
           {showSummary && (
             <div
               className={styles.summaryDialog}
-              style={{ top: dragPosition.top, left: dragPosition.left }}
+              style={{
+                top: dragPosition.top,
+                left: dragPosition.left,
+                width: dialogSize.width,
+                height: dialogSize.height,
+                maxHeight: '80vh',
+              }}
               ref={dragRef}
             >
               <div
                 style={{
                   padding: '16px',
-                  borderBottom: '1px solid #eee',
+                  borderBottom: '1px solid var(--colorNeutralStroke2)',
                   cursor: 'move',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexShrink: 0,
                 }}
                 onMouseDown={handleMouseDown}
               >
@@ -152,12 +223,16 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
                   appearance="subtle"
                   onClick={() => setShowSummary(false)}
                   icon={<ArrowMinimize24Regular />}
-                  style={{ float: 'right' }}
                 />
               </div>
-              <div style={{ padding: '16px', maxHeight: 'calc(100% - 60px)', overflowY: 'auto' }}>
+              <div style={{ padding: '16px', flexGrow: 1, overflowY: 'auto' }}>
                 <ArticleSummary article={selectedArticle} />
               </div>
+              {/* Resize handle */}
+              <div
+                className={styles.resizeHandle}
+                onMouseDown={handleResizeMouseDown}
+              />
             </div>
           )}
 
