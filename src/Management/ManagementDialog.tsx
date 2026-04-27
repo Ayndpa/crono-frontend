@@ -6,7 +6,6 @@ import { ContentSettings24Regular } from '@fluentui/react-icons';
 
 // 定义样式
 const useStyles = makeStyles({
-  // 根样式，应用于 Toolbar
   root: {
     height: '100%',
   },
@@ -17,22 +16,39 @@ const useStyles = makeStyles({
   dialogSurface: {
     height: '88vh',
     width: '92vw',
-    maxWidth: 'none', // 确保对话框宽度不受限制
+    maxWidth: 'none',
   }
 });
 
-const ManagementDialog: React.FC = () => {
+interface ManagementDialogProps {
+  /** 受控模式：外部控制打开状态 */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+const ManagementDialog: React.FC<ManagementDialogProps> = ({ open, onOpenChange }) => {
   const styles = useStyles();
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? open : internalOpen;
+  const handleOpenChange = (_: unknown, data: { open: boolean }) => {
+    if (isControlled) onOpenChange?.(data.open);
+    else setInternalOpen(data.open);
+  };
+
   return (
-    <Dialog>
-      <DialogTrigger>
-        <Tooltip content="管理订阅源" relationship="label">
-          <ToolbarButton
-            aria-label="管理订阅源"
-            icon={<ContentSettings24Regular />}
-          />
-        </Tooltip>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      {!isControlled && (
+        <DialogTrigger>
+          <Tooltip content="管理订阅源" relationship="label">
+            <ToolbarButton
+              aria-label="管理订阅源"
+              icon={<ContentSettings24Regular />}
+            />
+          </Tooltip>
+        </DialogTrigger>
+      )}
       <DialogSurface className={styles.dialogSurface}>
         <DialogBody>
           <DialogTitle>
@@ -51,9 +67,7 @@ const ManagementDialog: React.FC = () => {
               </div>
             </div>
           </DialogContent>
-          <DialogActions>
-
-          </DialogActions>
+          <DialogActions />
         </DialogBody>
       </DialogSurface>
     </Dialog>

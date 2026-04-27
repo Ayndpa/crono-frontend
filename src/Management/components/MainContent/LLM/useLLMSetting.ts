@@ -94,10 +94,13 @@ export const useManagement = () => {
 
   useEffect(() => {
     // Fetch the current llm_config_id from the backend
+    const token = localStorage.getItem('token');
     axios
-      .get(`${import.meta.env.VITE_BACKEND_URL}/config/llm_config_id`)
+      .get(`${import.meta.env.VITE_BACKEND_URL}/config/llm_config_id`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
       .then((response) => {
-        setCurrentConfigId(response.data.value); // 保存当前配置 ID
+        setCurrentConfigId(response.data.value);
       })
       .catch((err) => {
         console.error('Failed to fetch llm_config_id:', err);
@@ -106,8 +109,13 @@ export const useManagement = () => {
 
   const setLLMConfigId = async (id: string) => {
     try {
-      await axios.put(`${import.meta.env.VITE_BACKEND_URL}/config/llm_config_id`, { key: 'llm_config_id', value: id });
-      setCurrentConfigId(id); // 更新当前配置 ID
+      const token = localStorage.getItem('token');
+      await axios.put(
+        `${import.meta.env.VITE_BACKEND_URL}/config/llm_config_id`,
+        { key: 'llm_config_id', value: id },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      );
+      setCurrentConfigId(id);
     } catch (err) {
       console.error('Failed to update llm_config_id:', err);
       throw err;

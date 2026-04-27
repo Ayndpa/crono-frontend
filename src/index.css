@@ -2,3 +2,36 @@ body, html, #root {
   margin: 0;
   padding: 0;
 }
+
+/* Chat styles */
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-container {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.messages-area {
+    scroll-behavior: smooth;
+}
+
+.message-item {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@media (max-width: 1200px) {
+    .chat-container .sidebar { display: none; }
+}
+
+@media (max-width: 768px) {
+    .chat-container { flex-direction: column; }
+    .chat-container .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #e0e0e0; }
+    .chat-container .settings-panel { width: 100%; border-left: none; border-top: 1px solid #e0e0e0; }
+}

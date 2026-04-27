@@ -11,6 +11,7 @@ import {
     Tooltip,
 } from "@fluentui/react-components";
 import { Delete24Regular } from "@fluentui/react-icons";
+import { apiFetch } from "../../../../api/client";
 
 export const DeleteConfirm: React.FC<{
     itemName: string;
@@ -26,7 +27,7 @@ export const DeleteConfirm: React.FC<{
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rss/feed/${feedId}`, {
+            const response = await apiFetch(`/rss/feed/${feedId}`, {
                 method: "DELETE",
             });
 

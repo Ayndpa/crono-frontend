@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import type { Feed } from './model/feed';
 import type { ArticleResponse } from './model/article';
+import { apiFetch } from '../api/client';
 
 const fetchArticlesFromBackend = async (): Promise<ArticleResponse[]> => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rss/article/latest?limit=50`);
-    if (!res.ok) {
-      throw new Error('Failed to fetch articles');
-    }
+    const res = await apiFetch('/rss/article/latest?limit=50');
+    if (!res.ok) throw new Error('Failed to fetch articles');
     const data = await res.json();
     return data.articles;
   } catch (err) {
@@ -18,10 +17,8 @@ const fetchArticlesFromBackend = async (): Promise<ArticleResponse[]> => {
 
 const fetchFeedsFromBackend = async (): Promise<Feed[]> => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rss/feed/`);
-    if (!res.ok) {
-      throw new Error('Failed to fetch feeds');
-    }
+    const res = await apiFetch('/rss/feed/');
+    if (!res.ok) throw new Error('Failed to fetch feeds');
     return await res.json();
   } catch (err) {
     console.error('后端订阅源加载失败', err);
@@ -64,12 +61,8 @@ export const useRSSData = () => {
     );
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rss/article/state/mark-as-read/${id}`, {
-        method: 'POST',
-      });
-      if (!res.ok) {
-        throw new Error('Failed to mark article as read');
-      }
+      const res = await apiFetch(`/rss/article/state/mark-as-read/${id}`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to mark article as read');
     } catch (err) {
       console.error('标记文章为已读失败', err);
     }
@@ -86,10 +79,8 @@ export const useRSSData = () => {
 
   const fetchArticlesByFeed = async (feedId: string): Promise<void> => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rss/article/${feedId}`);
-      if (!res.ok) {
-        throw new Error('Failed to fetch articles by feed');
-      }
+      const res = await apiFetch(`/rss/article/${feedId}`);
+      if (!res.ok) throw new Error('Failed to fetch articles by feed');
       const data = await res.json();
       setArticles(data.articles);
     } catch (err) {
@@ -106,6 +97,6 @@ export const useRSSData = () => {
     setIsReaderOpen,
     fetchArticlesByFeed,
     fetchArticlesFromBackend,
-    refetchArticlesFromBackend
+    refetchArticlesFromBackend,
   };
 };

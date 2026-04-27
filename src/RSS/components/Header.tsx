@@ -6,11 +6,18 @@ import {
   ToolbarDivider,
   SearchBox,
   Tooltip,
-  makeStyles, // 导入 makeStyles
-  shorthands, // 导入 shorthands 用于简化样式
+  makeStyles,
+  shorthands,
+  Avatar,
+  Menu,
+  MenuTrigger,
+  MenuPopover,
+  MenuList,
+  MenuItem,
 } from '@fluentui/react-components';
-import { ArrowClockwise24Regular, WeatherMoon24Regular } from '@fluentui/react-icons';
+import { ArrowClockwise24Regular, WeatherMoon24Regular, SignOut24Regular } from '@fluentui/react-icons';
 import ManagementDialog from '../../Management/ManagementDialog';
+import type { AuthUser } from '../../api/auth';
 
 // 定义样式
 const useStyles = makeStyles({
@@ -49,14 +56,19 @@ const useStyles = makeStyles({
   }
 });
 
-export const Header = ({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: () => void }) => {
+export const Header = ({ isDark, toggleTheme, user, onLogout }: {
+  isDark: boolean;
+  toggleTheme: () => void;
+  user: AuthUser;
+  onLogout: () => void;
+}) => {
   const styles = useStyles();
 
   return (
     <>
       <Toolbar className={styles.root}>
         <ToolbarGroup>
-          <Text size={600} weight="semibold">RSS阅读器</Text>
+          <Text size={600} weight="semibold">Cronos</Text>
         </ToolbarGroup>
 
         <ToolbarGroup className={styles.searchGroup}>
@@ -76,6 +88,21 @@ export const Header = ({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: 
             />
           </Tooltip>
           <ManagementDialog />
+          <Menu>
+            <MenuTrigger>
+              <Avatar name={user.username} color="brand" style={{ cursor: 'pointer' }} />
+            </MenuTrigger>
+            <MenuPopover>
+              <MenuList>
+                <MenuItem disabled>
+                  <Text size={200} style={{ color: 'gray' }}>{user.username}</Text>
+                </MenuItem>
+                <MenuItem icon={<SignOut24Regular />} onClick={onLogout}>
+                  退出登录
+                </MenuItem>
+              </MenuList>
+            </MenuPopover>
+          </Menu>
         </ToolbarGroup>
       </Toolbar>
     </>

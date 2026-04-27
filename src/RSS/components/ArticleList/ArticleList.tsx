@@ -9,9 +9,10 @@ import {
   Text,
   Tooltip,
 } from '@fluentui/react-components';
-import { BoxFilled, GridFilled, ListFilled } from '@fluentui/react-icons';
+import { BoxFilled, GridFilled, ListFilled, Add24Regular } from '@fluentui/react-icons';
 import { ArticleCard } from './ArticleCard';
 import { ArticleListItem } from './ArticleListItem';
+import { AddOrUpdateDialog } from '../../../Management/components/MainContent/RssFeed/AddOrUpdateDialog';
 import type { ArticleResponse } from '../../model/article';
 
 const useStyles = makeStyles({
@@ -97,6 +98,13 @@ export const ArticleList: React.FC<ArticleListProps> = ({
         <Text className={styles.emptyDescription}>
           当前分类下没有文章，请尝试其他分类或添加新的订阅源。
         </Text>
+        <AddOrUpdateDialog
+          trigger={
+            <Button appearance="primary" icon={<Add24Regular />}>
+              添加订阅源
+            </Button>
+          }
+        />
       </div>
     );
   }

@@ -16,10 +16,10 @@ import {
   makeStyles,
   Card,
   Divider,
+  Tooltip,
+  tokens,
 } from '@fluentui/react-components';
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-
+import { EditRegular, DeleteRegular, CheckmarkCircleRegular, CheckmarkCircleFilled } from '@fluentui/react-icons';
 import { useManagement } from './useLLMSetting';
 import { EditForm } from './components/EditForm/EditForm';
 
@@ -43,7 +43,19 @@ const useStyles = makeStyles({
   },
   tableActions: {
     display: 'flex',
-    gap: '10px',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+  },
+  iconBtn: {
+    minWidth: 'unset',
+  },
+  defaultBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalXS,
+    color: tokens.colorBrandForeground1,
+    fontSize: tokens.fontSizeBase200,
+    fontWeight: tokens.fontWeightSemibold,
   },
 });
 
@@ -67,7 +79,7 @@ function LLMSetting() {
   return (
     <div className={styles.root}>
       <Card className={styles.card}>
-        <EditForm onSubmit={handleCreate} triggerBtnText="添加新配置" />
+        <EditForm onSubmit={handleCreate} triggerBtnText="添加新配置" triggerBtnAppearance="primary" />
         <Divider />
         {loading ? (
           <div className={styles.spinnerContainer}>
@@ -86,7 +98,7 @@ function LLMSetting() {
                 <TableHeaderCell>模型名称</TableHeaderCell>
                 <TableHeaderCell>Base URL</TableHeaderCell>
                 <TableHeaderCell>API Key</TableHeaderCell>
-                <TableHeaderCell>操作</TableHeaderCell>
+                <TableHeaderCell style={{ minWidth: '160px' }}>操作</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -97,26 +109,38 @@ function LLMSetting() {
                   <TableCell>
                     {cfg.api_key ? '********' : '未设置'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell style={{ minWidth: '160px' }}>
                     <div className={styles.tableActions}>
-                      <EditForm
-                        triggerBtnText="编辑"
-                        initialData={cfg}
-                        onSubmit={(data) => handleUpdate(cfg.id, data)}
-                      />
-                      <Button
-                        appearance="secondary"
-                        onClick={() => confirmDelete(cfg.id)}
-                      >
-                        删除
-                      </Button>
-                      <Button
-                        appearance={currentConfigId === cfg.id.toString() ? "outline" : "primary"}
-                        onClick={() => currentConfigId !== cfg.id.toString() && setLLMConfigId(cfg.id.toString())}
-                        disabled={currentConfigId === cfg.id.toString()}
-                      >
-                        {currentConfigId === cfg.id.toString() ? "当前配置" : "设置为当前配置"}
-                      </Button>
+                      <Tooltip content="编辑" relationship="label">
+                        <EditForm
+                          triggerBtnText={<EditRegular />}
+                          initialData={cfg}
+                          onSubmit={(data) => handleUpdate(cfg.id, data)}
+                        />
+                      </Tooltip>
+                      <Tooltip content="删除" relationship="label">
+                        <Button
+                          className={styles.iconBtn}
+                          appearance="subtle"
+                          icon={<DeleteRegular />}
+                          onClick={() => confirmDelete(cfg.id)}
+                        />
+                      </Tooltip>
+                      {currentConfigId === cfg.id.toString() ? (
+                        <span className={styles.defaultBadge}>
+                          <CheckmarkCircleFilled style={{ color: tokens.colorBrandForeground1 }} />
+                          当前配置
+                        </span>
+                      ) : (
+                        <Tooltip content="设置为当前配置" relationship="label">
+                          <Button
+                            className={styles.iconBtn}
+                            appearance="subtle"
+                            icon={<CheckmarkCircleRegular />}
+                            onClick={() => setLLMConfigId(cfg.id.toString())}
+                          />
+                        </Tooltip>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

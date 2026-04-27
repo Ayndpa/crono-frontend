@@ -52,8 +52,8 @@ import {
 } from '@fluentui/react-icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-// 引入 remark-breaks 插件来处理硬换行
 import remarkBreaks from 'remark-breaks';
+import { apiFetch } from '../api/client';
 
 // 在这里定义 Message 类型，确保类型安全
 interface Message {
@@ -120,11 +120,8 @@ const ChatApp = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/llm/stream_chat`, {
+            const response = await apiFetch('/llm/stream_chat', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({
                     model: model,
                     messages: newMessages.map(m => ({ role: m.role, content: m.content })),
@@ -344,10 +341,9 @@ const ChatApp = () => {
     };
 
     return (
-        <FluentProvider theme={webLightTheme}>
-            <div className="chat-container" style={{
+        <div className="chat-container" style={{
                 display: 'flex',
-                height: '100vh',
+                height: '100%',
                 backgroundColor: tokens.colorNeutralBackground3
             }}>
                 {/* 左侧对话列表 */}
@@ -662,68 +658,6 @@ const ChatApp = () => {
                     </div>
                 )}
             </div>
-
-            {/* 全局样式 */}
-            <style>{`
-                @keyframes slideIn {
-                    from {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                }
-
-                .chat-container {
-                    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-                }
-
-                .messages-area {
-                    scroll-behavior: smooth;
-                }
-
-                .message-item {
-                    animation: fadeIn 0.3s ease-out;
-                }
-
-                @keyframes fadeIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(10px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-
-                @media (max-width: 1200px) {
-                    .sidebar {
-                        display: none;
-                    }
-                }
-
-                @media (max-width: 768px) {
-                    .chat-container {
-                        flex-direction: column;
-                    }
-
-                    .sidebar {
-                        width: 100%;
-                        border-right: none;
-                        border-bottom: 1px solid ${tokens.colorNeutralStroke1};
-                    }
-
-                    .settings-panel {
-                        width: 100%;
-                        border-left: none;
-                        border-top: 1px solid ${tokens.colorNeutralStroke1};
-                    }
-                }
-            `}</style>
-        </FluentProvider>
     );
 };
 

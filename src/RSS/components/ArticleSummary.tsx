@@ -14,9 +14,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import type { ArticleResponse } from '../model/article';
+import { apiFetch } from '../../api/client';
 
 interface ArticleSummaryProps {
-    article: ArticleResponse | null; // 使用 ArticleResponse 替代 Article
+    article: ArticleResponse | null;
+    /** 浏览器模式：无 article 时直接传 url */
+    url?: string;
 }
 
 // 1. 使用 makeStyles 定义样式
@@ -93,7 +96,7 @@ const useStyles = makeStyles({
     },
 });
 
-export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article }) => {
+export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) => {
     // 2. 调用 useStyles hook 获取 styles
     const styles = useStyles();
 
@@ -101,22 +104,17 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article }) => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchSummary = async (url: string) => {
-        if (!url) return;
+    const fetchSummary = async (targetUrl: string, articleId?: number) => {
+        if (!targetUrl) return;
 
         setIsLoading(true);
         setError(null);
         setSummary('');
 
         try {
-            const apiUrl = `${import.meta.env.VITE_BACKEND_URL}/llm/ai_summary/stream`;
-
-            const response = await fetch(apiUrl, {
+            const response = await apiFetch('/llm/ai_summary/stream', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ article_id: article?.id, url: url }),
+                body: JSON.stringify({ url: targetUrl, article_id: articleId ?? null }),
             });
 
             if (!response.ok) {
@@ -148,12 +146,13 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article }) => {
     };
 
     useEffect(() => {
-        if (article?.link) {
-            fetchSummary(article.link);
+        const targetUrl = article?.link ? String(article.link) : url;
+        if (targetUrl) {
+            fetchSummary(targetUrl, article?.id);
         }
-    }, [article]);
+    }, [article?.id, url]);
 
-    if (!article) {
+    if (!article && !url) {
         return null;
     }
 

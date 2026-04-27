@@ -15,6 +15,7 @@ import {
 import { Link24Regular } from "@fluentui/react-icons";
 import { makeStyles } from "@fluentui/react-components";
 import type { Feed } from "../../../../RSS/model/feed";
+import { apiFetch } from "../../../../api/client";
 
 function isValidHttpUrl(u: string): boolean {
     try {
@@ -76,13 +77,10 @@ export const AddOrUpdateDialog: React.FC<{
                 url: url.trim(),
             };
 
-            const response = await fetch(
-                `${import.meta.env.VITE_BACKEND_URL}/rss/feed${feed ? `/${feed.id}` : ""}`,
+            const response = await apiFetch(
+                `/rss/feed${feed ? `/${feed.id}` : ""}`,
                 {
                     method: feed ? "PUT" : "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
                     body: JSON.stringify(payload),
                 }
             );

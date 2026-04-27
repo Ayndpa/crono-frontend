@@ -20,8 +20,8 @@ import {
 import { AddOrUpdateDialog } from './AddOrUpdateDialog';
 import { DeleteConfirm } from './DeleteConfirm';
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import type { Feed } from '../../../../RSS/model/feed';
+import { apiFetch } from '../../../../api/client';
 
 // --- 样式 ---
 const useStyles = makeStyles({
@@ -58,8 +58,8 @@ const FeedsSetting = () => {
 
     const fetchFeeds = async () => {
         try {
-            const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/rss/feed/`);
-            setFeeds(response.data);
+            const response = await apiFetch('/rss/feed/');
+            setFeeds(await response.json());
         } catch (error) {
             console.error('Failed to fetch feeds:', error);
         }
@@ -70,25 +70,25 @@ const FeedsSetting = () => {
     }, []);
 
     const handleRefreshFeed = async (feedId: number) => {
-        setRefreshingFeedId(feedId); // 设置正在刷新状态
+        setRefreshingFeedId(feedId);
         try {
-            await axios.post(`${import.meta.env.VITE_BACKEND_URL}/rss/updater/refresh/${feedId}`);
+            await apiFetch(`/rss/updater/refresh/${feedId}`, { method: 'POST' });
         } catch (error) {
             console.error('刷新失败:', error);
         } finally {
-            setRefreshingFeedId(null); // 恢复状态
+            setRefreshingFeedId(null);
         }
     };
 
     const handleRefreshAllFeeds = async () => {
-        setRefreshingAll(true); // 设置正在刷新状态
+        setRefreshingAll(true);
         try {
-            await axios.post(`${import.meta.env.VITE_BACKEND_URL}/rss/updater/refresh/all`);
-            fetchFeeds(); // 刷新数据
+            await apiFetch('/rss/updater/refresh/all', { method: 'POST' });
+            fetchFeeds();
         } catch (error) {
             console.error('刷新全部订阅源失败:', error);
         } finally {
-            setRefreshingAll(false); // 恢复状态
+            setRefreshingAll(false);
         }
     };
 

@@ -1,19 +1,24 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Button,
   Divider,
   makeStyles,
   Persona,
   shorthands,
+  Spinner,
   Text,
 } from '@fluentui/react-components';
-import { ArrowExit24Regular, ArrowMinimize24Regular, ClosedCaption24Regular, Sparkle24Regular } from '@fluentui/react-icons';
-import { ArticleSummary } from './ArticleSummary';
+import { Sparkle24Regular } from '@fluentui/react-icons';
+import { AiAssistPanel } from './AiAssistPanel';
+import { EntityHighlighter } from './EntityHighlighter';
 import type { ArticleResponse } from '../model/article';
+import { apiFetch } from '../../api/client';
+import DOMPurify from 'dompurify';
 
 interface ArticleReaderProps {
   selectedArticle: ArticleResponse | null;
   onToggleStar: (id: number) => void;
+  allArticles?: ArticleResponse[];
 }
 
 const useStyles = makeStyles({
@@ -56,118 +61,67 @@ const useStyles = makeStyles({
     height: '100%',
     border: 'none',
   },
-  // 悬浮窗样式
-  summaryDialog: {
-    position: 'absolute',
-    top: '60px', // 根据实际布局调整位置
-    right: '20px',
-    display: 'flex',
-    flexDirection: 'column',
-    zIndex: 100, // 确保在最上层
-    backgroundColor: 'var(--colorNeutralBackground1)',
-    borderRadius: '12px',
-    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08)',
-    border: '1px solid var(--colorNeutralStroke1)',
-    overflow: 'hidden',
+  articleHtml: {
+    padding: '0 4px',
+    lineHeight: '1.8',
+    fontSize: '16px',
+    overflowWrap: 'break-word',
+    '& img': { maxWidth: '100%', height: 'auto', borderRadius: '4px' },
+    '& a': { color: 'var(--colorBrandForeground1)' },
+    '& h1, & h2, & h3, & h4': { lineHeight: '1.4', marginTop: '1.5em' },
+    '& p': { marginBottom: '1em' },
+    '& pre': { overflowX: 'auto', padding: '12px', borderRadius: '6px', backgroundColor: 'var(--colorNeutralBackground2)' },
+    '& blockquote': { borderLeft: '3px solid var(--colorNeutralStroke1)', margin: '0', paddingLeft: '16px', color: 'var(--colorNeutralForeground2)' },
   },
-  resizeHandle: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: '15px',
-    height: '15px',
-    cursor: 'nwse-resize',
-    background: 'linear-gradient(135deg, transparent 50%, var(--colorNeutralStroke1) 50%)',
-    borderBottomRightRadius: '12px',
-  },
-  resizeHandleLeft: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: '10px',
-    height: '100%',
-    cursor: 'ew-resize',
-  },
-  resizeHandleRight: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: '10px',
-    height: '100%',
-    cursor: 'ew-resize',
-  },
-  resizeHandleBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: '100%',
-    height: '10px',
-    cursor: 'ns-resize',
-  },
+  // 悬浮窗样式已移至 AiAssistPanel
 });
 
 export const ArticleReader: React.FC<ArticleReaderProps> = ({
   selectedArticle,
+  allArticles = [],
 }) => {
   const styles = useStyles();
-  const [showSummary, setShowSummary] = useState(false);
-  const [dragPosition, setDragPosition] = useState({ top: 60, left: 20 });
-  const [dialogSize, setDialogSize] = useState({ width: 400, height: 500 });
-  const dragRef = useRef<HTMLDivElement | null>(null);
+  const [showAiPanel, setShowAiPanel] = useState(false);
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startTop = dragPosition.top;
-    const startLeft = dragPosition.left;
+  // 文章内容抓取状态
+  const [articleHtml, setArticleHtml] = useState<string | null>(null);
+  const [useFallbackIframe, setUseFallbackIframe] = useState(false);
+  const [loadingContent, setLoadingContent] = useState(false);
 
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const deltaX = moveEvent.clientX - startX;
-      const deltaY = moveEvent.clientY - startY;
-      setDragPosition({
-        top: startTop + deltaY,
-        left: startLeft + deltaX,
-      });
-    };
+  // 历史已读文章标题（最多 10 条，排除当前文章）
+  const historyTitles = useMemo(() => {
+    return allArticles
+      .filter(a => a.is_read && a.id !== selectedArticle?.id)
+      .slice(0, 10)
+      .map(a => a.title);
+  }, [allArticles, selectedArticle?.id]);
 
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
+  // 切换文章时重置并重新抓取
+  useEffect(() => {
+    setShowAiPanel(false);
+    setArticleHtml(null);
+    setUseFallbackIframe(false);
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
+    if (!selectedArticle?.link) return;
 
-  const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startWidth = dialogSize.width;
-    const startHeight = dialogSize.height;
+    setLoadingContent(true);
+    apiFetch('/rss/article/content', {
+      method: 'POST',
+      body: JSON.stringify({ url: String(selectedArticle.link) }),
+    })
+      .then(res => res.json())
+      .then((data: { html: string; title: string; captcha: boolean; from_cache: boolean }) => {
+        if (data.captcha || !data.html) {
+          setUseFallbackIframe(true);
+        } else {
+          setArticleHtml(DOMPurify.sanitize(data.html));
+        }
+      })
+      .catch(() => setUseFallbackIframe(true))
+      .finally(() => setLoadingContent(false));
+  }, [selectedArticle?.id]);
 
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const deltaX = moveEvent.clientX - startX;
-      const deltaY = moveEvent.clientY - startY;
-      setDialogSize({
-        width: Math.max(300, startWidth + deltaX),
-        height: Math.max(200, startHeight + deltaY),
-      });
-    };
 
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
-
-  React.useEffect(() => {
-    setShowSummary(false);
-  }, [selectedArticle]);
 
   return (
     <div className={styles.root}>
@@ -183,65 +137,43 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
           <div className={styles.buttonContainer}>
             <Button
               appearance="subtle"
-              onClick={() => setShowSummary(!showSummary)}
+              onClick={() => setShowAiPanel(!showAiPanel)}
               icon={<Sparkle24Regular />}
               style={{ marginLeft: '8px' }}
             >
-              AI 总结
+              AI 助手
             </Button>
           </div>
 
           <Divider />
 
-          {/* 悬浮窗实现 */}
-          {showSummary && (
-            <div
-              className={styles.summaryDialog}
-              style={{
-                top: dragPosition.top,
-                left: dragPosition.left,
-                width: dialogSize.width,
-                height: dialogSize.height,
-                maxHeight: '80vh',
-              }}
-              ref={dragRef}
-            >
-              <div
-                style={{
-                  padding: '16px',
-                  borderBottom: '1px solid var(--colorNeutralStroke2)',
-                  cursor: 'move',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexShrink: 0,
-                }}
-                onMouseDown={handleMouseDown}
-              >
-                <Text weight="bold">AI 摘要</Text>
-                <Button
-                  appearance="subtle"
-                  onClick={() => setShowSummary(false)}
-                  icon={<ArrowMinimize24Regular />}
-                />
-              </div>
-              <div style={{ padding: '16px', flexGrow: 1, overflowY: 'auto' }}>
-                <ArticleSummary article={selectedArticle} />
-              </div>
-              {/* Resize handle */}
-              <div
-                className={styles.resizeHandle}
-                onMouseDown={handleResizeMouseDown}
-              />
-            </div>
+          {showAiPanel && (
+            <AiAssistPanel
+              article={selectedArticle}
+              onClose={() => setShowAiPanel(false)}
+            />
           )}
 
-          <iframe
-            src={selectedArticle.link}
-            title={selectedArticle.title}
-            className={styles.iframe}
-            sandbox=""
-          />
+          {/* 文章内容区域：加载中 / 渲染 HTML / 降级 iframe */}
+          {loadingContent ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
+              <Spinner label="正在加载文章内容..." />
+            </div>
+          ) : useFallbackIframe ? (
+            <iframe
+              src={String(selectedArticle.link)}
+              title={selectedArticle.title}
+              className={styles.iframe}
+              sandbox="allow-scripts allow-same-origin"
+            />
+          ) : (
+            <EntityHighlighter
+              html={articleHtml ?? ''}
+              article={selectedArticle}
+              historyTitles={historyTitles}
+              className={styles.articleHtml}
+            />
+          )}
         </>
       ) : (
         <div className={styles.placeholderContainer}>
