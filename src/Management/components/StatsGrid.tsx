@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardHeader, Body1, Title3, tokens, makeStyles } from '@fluentui/react-components';
 import { FeedRegular, CheckmarkCircleRegular, DismissCircleRegular, ClockRegular } from '@fluentui/react-icons';
-import axios from 'axios';
+import { apiFetch } from '../../api/client';
 
 const useStyles = makeStyles({
   statsGrid: {
@@ -20,8 +20,9 @@ export const StatsGrid: React.FC = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/rss/feed`);
-        const feeds = response.data;
+        const response = await apiFetch('/rss/feed');
+        if (!response.ok) throw new Error('Failed to fetch feeds');
+        const feeds = await response.json();
         const activeFeeds = feeds.filter((feed: any) => feed.is_active).length;
         setStats({
           total: feeds.length,
@@ -35,8 +36,9 @@ export const StatsGrid: React.FC = () => {
 
     const fetchTodayUpdateCount = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/rss/article/state/today-update-count`);
-        setTodayUpdateCount(response.data);
+        const response = await apiFetch('/rss/article/state/today-update-count');
+        if (!response.ok) throw new Error('Failed to fetch today update count');
+        setTodayUpdateCount(await response.json());
       } catch (error) {
         console.error('Failed to fetch today update count:', error);
       }

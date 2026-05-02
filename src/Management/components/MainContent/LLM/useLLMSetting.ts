@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { type LLMConfig, getConfigs, createConfig, updateConfig, deleteConfig } from './api/llmConfig';
-import axios from 'axios';
+import { apiFetch } from '../../../../api/client';
 
 
 /**
@@ -22,7 +22,7 @@ export const useManagement = () => {
     setError(null);
     try {
       const res = await getConfigs();
-      setConfigs(res.data);
+      setConfigs(res);
     } catch (err) {
       setError('数据加载失败。请检查后端服务是否运行或网络连接。');
     } finally {
@@ -94,13 +94,11 @@ export const useManagement = () => {
 
   useEffect(() => {
     // Fetch the current llm_config_id from the backend
-    const token = localStorage.getItem('token');
-    axios
-      .get(`${import.meta.env.VITE_BACKEND_URL}/config/llm_config_id`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      .then((response) => {
-        setCurrentConfigId(response.data.value);
+    apiFetch('/config/llm_config_id')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Failed to fetch llm_config_id');
+        const data = await response.json();
+        setCurrentConfigId(data.value);
       })
       .catch((err) => {
         console.error('Failed to fetch llm_config_id:', err);
@@ -109,12 +107,11 @@ export const useManagement = () => {
 
   const setLLMConfigId = async (id: string) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(
-        `${import.meta.env.VITE_BACKEND_URL}/config/llm_config_id`,
-        { key: 'llm_config_id', value: id },
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-      );
+      const response = await apiFetch('/config/llm_config_id', {
+        method: 'PUT',
+        body: JSON.stringify({ key: 'llm_config_id', value: id }),
+      });
+      if (!response.ok) throw new Error('Failed to update llm_config_id');
       setCurrentConfigId(id);
     } catch (err) {
       console.error('Failed to update llm_config_id:', err);

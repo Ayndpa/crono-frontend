@@ -68,7 +68,8 @@ const useStyles = makeStyles({
   },
   tabActive: {
     backgroundColor: tokens.colorNeutralBackground1,
-    borderColor: tokens.colorNeutralStroke1,
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderBottom: '0',
     color: tokens.colorNeutralForeground1,
   },
   tabLabel: {
@@ -79,7 +80,7 @@ const useStyles = makeStyles({
     fontSize: '12px',
   },
   tabLabelActive: {
-    fontWeight: '600',
+    fontWeight: 600,
   },
   tabClose: {
     flexShrink: 0,

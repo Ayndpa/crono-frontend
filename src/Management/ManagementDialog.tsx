@@ -39,7 +39,7 @@ const ManagementDialog: React.FC<ManagementDialogProps> = ({ open, onOpenChange 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      {!isControlled && (
+      {isControlled ? <></> : (
         <DialogTrigger>
           <Tooltip content="管理订阅源" relationship="label">
             <ToolbarButton

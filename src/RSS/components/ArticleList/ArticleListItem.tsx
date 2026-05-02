@@ -1,6 +1,5 @@
 import * as React from 'react';
 import {
-  Button,
   Card,
   Persona,
   Tag,
@@ -9,7 +8,7 @@ import {
   Subtitle2Stronger,
   tokens,
 } from '@fluentui/react-components';
-import { StarFilled, StarRegular, TagRegular, CalendarMonthRegular } from '@fluentui/react-icons';
+import { TagRegular, CalendarMonthRegular } from '@fluentui/react-icons';
 import type { ArticleResponse } from '../../model/article';
 
 const useStyles = makeStyles({

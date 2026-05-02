@@ -3,7 +3,6 @@ import {
   Toolbar,
   ToolbarGroup,
   ToolbarButton,
-  ToolbarDivider,
   SearchBox,
   Tooltip,
   makeStyles,
@@ -15,7 +14,7 @@ import {
   MenuList,
   MenuItem,
 } from '@fluentui/react-components';
-import { ArrowClockwise24Regular, WeatherMoon24Regular, SignOut24Regular } from '@fluentui/react-icons';
+import { WeatherMoon24Regular, SignOut24Regular } from '@fluentui/react-icons';
 import ManagementDialog from '../../Management/ManagementDialog';
 import type { AuthUser } from '../../api/auth';
 
@@ -56,7 +55,7 @@ const useStyles = makeStyles({
   }
 });
 
-export const Header = ({ isDark, toggleTheme, user, onLogout }: {
+export const Header = ({ isDark: _isDark, toggleTheme, user, onLogout }: {
   isDark: boolean;
   toggleTheme: () => void;
   user: AuthUser;

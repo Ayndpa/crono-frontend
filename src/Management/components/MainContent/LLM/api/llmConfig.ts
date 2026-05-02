@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { apiFetch } from '../../../../../api/client';
 
 export interface LLMConfig {
   id: string;
@@ -9,21 +9,36 @@ export interface LLMConfig {
 
 export type LLMConfigInput = Omit<LLMConfig, 'id'>;
 
-const API_BASE = `${import.meta.env.VITE_BACKEND_URL}/llm/llm_config`;
+const API_BASE = '/llm/llm_config';
 
-function authHeaders() {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await apiFetch(path, init);
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(data?.detail ?? '请求失败');
+  }
+  return data as T;
 }
 
 export const getConfigs = () =>
-  axios.get<LLMConfig[]>(API_BASE, { headers: authHeaders() });
+  requestJson<LLMConfig[]>(API_BASE);
 
 export const createConfig = (config: LLMConfigInput) =>
-  axios.post<LLMConfig>(API_BASE, config, { headers: authHeaders() });
+  requestJson<LLMConfig>(API_BASE, {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
 
 export const updateConfig = (id: string, config: LLMConfigInput) =>
-  axios.patch<LLMConfig>(`${API_BASE}/${id}`, config, { headers: authHeaders() });
+  requestJson<LLMConfig>(`${API_BASE}/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(config),
+  });
 
 export const deleteConfig = (id: string) =>
-  axios.delete<void>(`${API_BASE}/${id}`, { headers: authHeaders() });
+  apiFetch(`${API_BASE}/${id}`, { method: 'DELETE' }).then(async (response) => {
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.detail ?? '请求失败');
+    }
+  });

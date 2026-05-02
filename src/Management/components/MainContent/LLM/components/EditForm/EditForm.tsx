@@ -7,7 +7,7 @@ import type { LLMConfig } from '../../api/llmConfig';
 interface LLMFormProps {
   initialData?: Omit<LLMConfig, 'id'> & { id?: string };
   onSubmit: (data: Omit<LLMConfig, 'id'>) => Promise<void>;
-  triggerBtnText: React.ReactNode;
+  triggerBtnText: string | React.ReactElement;
   triggerBtnAppearance?: 'primary' | 'subtle' | 'secondary' | 'outline' | 'transparent';
   /** 挂载时直接打开对话框（用于外部程序化触发） */
   defaultOpen?: boolean;

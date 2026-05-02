@@ -1,10 +1,8 @@
 import React from 'react';
 import {
-  Badge,
   Nav,
   NavItem,
   NavSectionHeader,
-  NavDivider,
 } from '@fluentui/react-components';
 import { Feed20Regular, Folder20Regular } from '@fluentui/react-icons';
 import { makeStyles } from '@fluentui/react-components';

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { makeStyles, Spinner, Text, tokens } from '@fluentui/react-components';
+import { makeStyles, Spinner } from '@fluentui/react-components';
 import ReactMarkdown from 'react-markdown';
 import { streamEntityExplain, type Entity } from '../api/entityApi';
 import type { ArticleResponse } from '../model/article';

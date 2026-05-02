@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-    FluentProvider,
-    webLightTheme,
     Avatar,
     Text,
     Textarea,
@@ -19,25 +17,19 @@ import {
     MenuTrigger,
     Card,
     CardHeader,
-    CardPreview,
     Checkbox,
-    Switch,
     Slider,
     Label,
     Field,
     InfoLabel,
-    Badge,
     MessageBar,
     MessageBarTitle,
     MessageBarBody,
-    ProgressBar,
-    useId,
     tokens
 } from '@fluentui/react-components';
 import {
     Send24Regular,
     Mic24Regular,
-    Attach16Regular,
     MoreHorizontal24Regular,
     Settings24Regular,
     Lightbulb24Regular,
@@ -221,7 +213,7 @@ const ChatApp = () => {
     };
 
     // 处理键盘事件
-    const handleKeyDown = (e: { key: string; shiftKey: any; preventDefault: () => void; }) => {
+    const handleKeyDown = (e: { key: string; shiftKey: boolean; preventDefault: () => void; }) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();

@@ -131,7 +131,6 @@ export const ArticleQA: React.FC<ArticleQAProps> = ({ article, url }) => {
 
             const decoder = new TextDecoder('utf-8');
             let content = '';
-            const aiId = Date.now().toString();
 
             setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
