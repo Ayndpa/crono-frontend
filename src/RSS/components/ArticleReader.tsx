@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+  import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Button,
   Divider,
@@ -10,7 +10,7 @@ import {
 } from '@fluentui/react-components';
 import { Sparkle24Regular } from '@fluentui/react-icons';
 import { AiAssistPanel } from './AiAssistPanel';
-import { EntityHighlighter } from './EntityHighlighter';
+import { SelectionAssistPopover } from './SelectionAssistPopover';
 import type { ArticleResponse } from '../model/article';
 import { apiFetch } from '../../api/client';
 import DOMPurify from 'dompurify';
@@ -76,6 +76,24 @@ const useStyles = makeStyles({
   // 悬浮窗样式已移至 AiAssistPanel
 });
 
+const ArticleContent = React.memo(({ 
+  html, 
+  className, 
+  onMouseUp 
+}: { 
+  html: string; 
+  className: string; 
+  onMouseUp: () => void 
+}) => {
+  return (
+    <div
+      className={className}
+      dangerouslySetInnerHTML={{ __html: html }}
+      onMouseUp={onMouseUp}
+    />
+  );
+});
+
 export const ArticleReader: React.FC<ArticleReaderProps> = ({
   selectedArticle,
   allArticles = [],
@@ -87,6 +105,45 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
   const [articleHtml, setArticleHtml] = useState<string | null>(null);
   const [useFallbackIframe, setUseFallbackIframe] = useState(false);
   const [loadingContent, setLoadingContent] = useState(false);
+
+  const [selectionState, setSelectionState] = useState<{
+    text: string;
+    context: string;
+    rect: { top: number; left: number; width: number; height: number; bottom: number };
+  } | null>(null);
+
+  const handleSelection = useCallback(() => {
+    setTimeout(() => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed) {
+        setSelectionState(null);
+        return;
+      }
+      
+      const text = selection.toString().trim();
+      if (!text) {
+        setSelectionState(null);
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      const contextElement = range.commonAncestorContainer.parentElement;
+      const context = contextElement ? contextElement.textContent || text : text;
+
+      setSelectionState({
+        text,
+        context: context.substring(0, 1000),
+        rect: {
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+          bottom: rect.bottom,
+        }
+      });
+    }, 10);
+  }, []);
 
   // 历史已读文章标题（最多 10 条，排除当前文章）
   const historyTitles = useMemo(() => {
@@ -167,11 +224,28 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
               sandbox="allow-scripts allow-same-origin"
             />
           ) : (
-            <EntityHighlighter
-              html={articleHtml ?? ''}
-              article={selectedArticle}
-              historyTitles={historyTitles}
+            <ArticleContent
               className={styles.articleHtml}
+              html={articleHtml ?? ''}
+              onMouseUp={handleSelection}
+            />
+          )}
+
+          {selectionState && selectedArticle && (
+            <SelectionAssistPopover
+              text={selectionState.text}
+              context={selectionState.context}
+              articleTitle={selectedArticle.title}
+              anchorRect={selectionState.rect}
+              onLocate={() => {
+                const selection = window.getSelection();
+                if (selection && selection.rangeCount > 0) {
+                  const range = selection.getRangeAt(0);
+                  const element = range.startContainer.parentElement;
+                  element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }}
+              onClose={() => setSelectionState(null)}
             />
           )}
         </>

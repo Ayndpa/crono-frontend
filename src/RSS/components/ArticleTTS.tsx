@@ -6,6 +6,7 @@ import {
   Slider,
   Spinner,
   Text,
+  Textarea,
   makeStyles,
 } from '@fluentui/react-components';
 import {
@@ -13,6 +14,7 @@ import {
   Pause24Regular,
   Stop24Regular,
   ArrowClockwise24Regular,
+  Speaker224Regular,
 } from '@fluentui/react-icons';
 import { useSpeech } from './useSpeech';
 import { apiFetch } from '../../api/client';
@@ -41,12 +43,22 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     gap: '4px',
   },
+  styleInput: {
+    minHeight: '72px',
+  },
   sliderLabel: {
     display: 'flex',
     justifyContent: 'space-between',
   },
   voiceSelect: {
-    width: '100%',
+    flex: 1,
+    minWidth: '220px',
+  },
+  voiceRow: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   statusText: {
     color: 'var(--colorNeutralForeground3)',
@@ -68,9 +80,10 @@ const useStyles = makeStyles({
 
 export const ArticleTTS: React.FC<ArticleTTSProps> = ({ article, url }) => {
   const styles = useStyles();
-  const { status, voices, options, setOptions, speak, pause, resume, stop } = useSpeech();
+  const { status, voices, options, setOptions, speak, preview, pause, resume, stop } = useSpeech();
 
   const [script, setScript] = useState('');
+  const [style, setStyle] = useState('');
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -101,7 +114,11 @@ export const ArticleTTS: React.FC<ArticleTTSProps> = ({ article, url }) => {
     try {
       const res = await apiFetch('/llm/podcast/stream', {
         method: 'POST',
-        body: JSON.stringify({ url: targetUrl, article_id: article?.id ?? null }),
+        body: JSON.stringify({
+          url: targetUrl,
+          article_id: article?.id ?? null,
+          style: style.trim() || null,
+        }),
         signal: ctrl.signal,
       });
       if (!res.ok) throw new Error(`请求失败 (${res.status})`);
@@ -140,6 +157,17 @@ export const ArticleTTS: React.FC<ArticleTTSProps> = ({ article, url }) => {
 
   return (
     <div className={styles.root}>
+      <div className={styles.sliderRow}>
+        <Label>播客稿风格</Label>
+        <Textarea
+          className={styles.styleInput}
+          value={style}
+          onChange={(_, d) => setStyle(d.value)}
+          placeholder="例如：像科技播客主持人，语气轻松一点，多用类比；或保持严肃新闻播报风格。"
+          disabled={generating}
+        />
+      </div>
+
       {/* 生成播客稿 */}
       <div className={styles.controls}>
         <Button
@@ -163,26 +191,36 @@ export const ArticleTTS: React.FC<ArticleTTSProps> = ({ article, url }) => {
       {/* 语音选择 */}
       <div className={styles.sliderRow}>
         <Label>语音</Label>
-        <Select
-          className={styles.voiceSelect}
-          value={options.voiceURI}
-          onChange={(_, d) => setOptions(prev => ({ ...prev, voiceURI: d.value }))}
-        >
-          {zhVoices.length > 0 && (
-            <optgroup label="中文语音">
-              {zhVoices.map(v => (
-                <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>
-              ))}
-            </optgroup>
-          )}
-          {otherVoices.length > 0 && (
-            <optgroup label="其他语音">
-              {otherVoices.map(v => (
-                <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>
-              ))}
-            </optgroup>
-          )}
-        </Select>
+        <div className={styles.voiceRow}>
+          <Select
+            className={styles.voiceSelect}
+            value={options.voiceURI}
+            onChange={(_, d) => setOptions(prev => ({ ...prev, voiceURI: d.value }))}
+          >
+            {zhVoices.length > 0 && (
+              <optgroup label="中文语音">
+                {zhVoices.map(v => (
+                  <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>
+                ))}
+              </optgroup>
+            )}
+            {otherVoices.length > 0 && (
+              <optgroup label="其他语音">
+                {otherVoices.map(v => (
+                  <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>
+                ))}
+              </optgroup>
+            )}
+          </Select>
+          <Button
+            appearance="secondary"
+            icon={<Speaker224Regular />}
+            onClick={() => preview()}
+            disabled={voices.length === 0}
+          >
+            试听
+          </Button>
+        </div>
       </div>
 
       {/* 播放控制 */}

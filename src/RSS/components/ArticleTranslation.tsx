@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Button,
   Spinner,
   Text,
   MessageBar,
@@ -8,6 +9,7 @@ import {
   makeStyles,
   shorthands,
 } from '@fluentui/react-components';
+import { Translate24Regular } from '@fluentui/react-icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -81,13 +83,21 @@ const useStyles = makeStyles({
     color: 'var(--colorNeutralForeground4)',
     fontStyle: 'italic',
   },
+  startArea: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    ...shorthands.gap('12px'),
+  },
 });
 
 export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article, url }) => {
   const styles = useStyles();
   const [translation, setTranslation] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isCheckingCache, setIsCheckingCache] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const targetUrl = article?.link ? String(article.link) : url;
 
   const fetchTranslation = async (targetUrl: string, articleId?: number) => {
     if (!targetUrl) return;
@@ -127,13 +137,65 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
   };
 
   useEffect(() => {
-    const targetUrl = article?.link ? String(article.link) : url;
+    let ignore = false;
+
+    const checkTranslationCache = async () => {
+      setError(null);
+      setIsLoading(false);
+
+      if (article?.ai_translation) {
+        setTranslation(article.ai_translation);
+        setIsCheckingCache(false);
+        return;
+      }
+
+      setTranslation('');
+
+      if (!article?.id) {
+        setIsCheckingCache(false);
+        return;
+      }
+
+      setIsCheckingCache(true);
+      try {
+        const response = await apiFetch('/llm/translation/cache', {
+          method: 'POST',
+          body: JSON.stringify({ article_id: article.id }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`翻译缓存检查失败：${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!ignore && data.translation) {
+          setTranslation(data.translation);
+        }
+      } catch (err) {
+        if (!ignore) {
+          console.error('Failed to check translation cache:', err);
+        }
+      } finally {
+        if (!ignore) {
+          setIsCheckingCache(false);
+        }
+      }
+    };
+
+    checkTranslationCache();
+
+    return () => {
+      ignore = true;
+    };
+  }, [article?.id, article?.ai_translation, url]);
+
+  const handleStart = () => {
     if (targetUrl) {
       fetchTranslation(targetUrl, article?.id);
     }
-  }, [article?.id, url]);
+  };
 
-  if (!article && !url) return null;
+  if (!targetUrl) return null;
 
   return (
     <div>
@@ -141,6 +203,12 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
         <div className={styles.loadingContainer}>
           <Spinner size="tiny" />
           <Text>正在翻译全文...</Text>
+        </div>
+      )}
+      {isCheckingCache && !translation && !isLoading && (
+        <div className={styles.loadingContainer}>
+          <Spinner size="tiny" />
+          <Text>正在检查已有翻译...</Text>
         </div>
       )}
       {error && (
@@ -181,8 +249,19 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
           {translation}
         </ReactMarkdown>
       )}
-      {!translation && !isLoading && !error && (
-        <Text className={styles.initialText}>AI 将对全文进行上下文感知翻译，技术名词自动标注。</Text>
+      {!translation && !isLoading && !isCheckingCache && (
+        <div className={styles.startArea}>
+          {!error && (
+            <Text className={styles.initialText}>点击按钮后进行全文翻译。</Text>
+          )}
+          <Button
+            appearance="primary"
+            icon={<Translate24Regular />}
+            onClick={handleStart}
+          >
+            {error ? '重新翻译' : '开始翻译'}
+          </Button>
+        </div>
       )}
     </div>
   );

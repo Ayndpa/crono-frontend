@@ -1,6 +1,7 @@
 // ArticleSummary.tsx
 import React, { useState, useEffect } from 'react';
 import {
+    Button,
     Spinner,
     Text,
     MessageBar,
@@ -9,6 +10,7 @@ import {
     makeStyles, // 引入 makeStyles
     shorthands, // 引入 shorthands
 } from '@fluentui/react-components';
+import { DocumentSparkle24Regular } from '@fluentui/react-icons';
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -94,6 +96,12 @@ const useStyles = makeStyles({
         color: 'var(--colorNeutralForeground4)',
         fontStyle: 'italic',
     },
+    startArea: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        ...shorthands.gap('12px'),
+    },
 });
 
 export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) => {
@@ -102,7 +110,9 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
 
     const [summary, setSummary] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isCheckingCache, setIsCheckingCache] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const targetUrl = article?.link ? String(article.link) : url;
 
     const fetchSummary = async (targetUrl: string, articleId?: number) => {
         if (!targetUrl) return;
@@ -146,13 +156,65 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
     };
 
     useEffect(() => {
-        const targetUrl = article?.link ? String(article.link) : url;
+        let ignore = false;
+
+        const checkSummaryCache = async () => {
+            setError(null);
+            setIsLoading(false);
+
+            if (article?.ai_summary) {
+                setSummary(article.ai_summary);
+                setIsCheckingCache(false);
+                return;
+            }
+
+            setSummary('');
+
+            if (!article?.id) {
+                setIsCheckingCache(false);
+                return;
+            }
+
+            setIsCheckingCache(true);
+            try {
+                const response = await apiFetch('/llm/ai_summary/cache', {
+                    method: 'POST',
+                    body: JSON.stringify({ article_id: article.id }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`摘要缓存检查失败：${response.status}`);
+                }
+
+                const data = await response.json();
+                if (!ignore && data.summary) {
+                    setSummary(data.summary);
+                }
+            } catch (err) {
+                if (!ignore) {
+                    console.error('Failed to check summary cache:', err);
+                }
+            } finally {
+                if (!ignore) {
+                    setIsCheckingCache(false);
+                }
+            }
+        };
+
+        checkSummaryCache();
+
+        return () => {
+            ignore = true;
+        };
+    }, [article?.id, article?.ai_summary, url]);
+
+    const handleStart = () => {
         if (targetUrl) {
             fetchSummary(targetUrl, article?.id);
         }
-    }, [article?.id, url]);
+    };
 
-    if (!article && !url) {
+    if (!targetUrl) {
         return null;
     }
 
@@ -162,6 +224,12 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
                 <div className={styles.loadingContainer}>
                     <Spinner size="tiny" />
                     <Text>正在生成 AI 摘要...</Text>
+                </div>
+            )}
+            {isCheckingCache && !summary && !isLoading && (
+                <div className={styles.loadingContainer}>
+                    <Spinner size="tiny" />
+                    <Text>正在检查已有摘要...</Text>
                 </div>
             )}
             {error && (
@@ -208,8 +276,19 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
                     </ReactMarkdown>
                 </div>
             )}
-            {!summary && !isLoading && !error && (
-                <Text className={styles.initialText}>AI助手将为您生成文章摘要。</Text>
+            {!summary && !isLoading && !isCheckingCache && (
+                <div className={styles.startArea}>
+                    {!error && (
+                        <Text className={styles.initialText}>点击按钮后生成文章摘要。</Text>
+                    )}
+                    <Button
+                        appearance="primary"
+                        icon={<DocumentSparkle24Regular />}
+                        onClick={handleStart}
+                    >
+                        {error ? '重新生成摘要' : '开始生成摘要'}
+                    </Button>
+                </div>
             )}
         </div>
     );

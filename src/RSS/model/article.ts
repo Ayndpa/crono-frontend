@@ -50,6 +50,11 @@ export interface ArticleResponse {
     ai_summary?: string;
 
     /**
+     * AI生成的全文翻译
+     */
+    ai_translation?: string;
+
+    /**
      * 状态最后更新时间
      */
     updated_at: string;

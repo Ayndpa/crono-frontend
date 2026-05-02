@@ -33,6 +33,7 @@ const useStyles = makeStyles({
     },
     messages: {
         flex: 1,
+        minHeight: 0,
         overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
@@ -95,10 +96,15 @@ export const ArticleQA: React.FC<ArticleQAProps> = ({ article, url }) => {
     const [messages, setMessages] = useState<QAMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        const messagesEl = messagesRef.current;
+        if (!messagesEl) return;
+
+        requestAnimationFrame(() => {
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        });
     }, [messages]);
 
     const targetUrl = article?.link ? String(article.link) : url;
@@ -165,7 +171,7 @@ export const ArticleQA: React.FC<ArticleQAProps> = ({ article, url }) => {
 
     return (
         <div className={styles.container}>
-            <div className={styles.messages}>
+            <div className={styles.messages} ref={messagesRef}>
                 {messages.length === 0 && (
                     <Text className={styles.emptyHint}>
                         针对这篇文章提问，AI 将基于文章内容回答。
@@ -200,7 +206,6 @@ export const ArticleQA: React.FC<ArticleQAProps> = ({ article, url }) => {
                         <Spinner size="tiny" label="思考中..." />
                     </div>
                 )}
-                <div ref={messagesEndRef} />
             </div>
 
             <div className={styles.inputRow}>
