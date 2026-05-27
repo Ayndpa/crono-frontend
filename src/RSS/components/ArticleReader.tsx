@@ -27,6 +27,7 @@ import { apiFetch } from '../../api/client';
 import DOMPurify from 'dompurify';
 
 interface ArticleReaderProps {
+  isDark: boolean;
   selectedArticle: ArticleResponse | null;
   onToggleStar: (id: number) => void;
   showAiPanel: boolean;
@@ -468,6 +469,7 @@ const ArticleContent = React.memo(({
 });
 
 export const ArticleReader: React.FC<ArticleReaderProps> = ({
+  isDark,
   selectedArticle,
   showAiPanel,
   setShowAiPanel,
@@ -486,17 +488,31 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
     try {
       const saved = localStorage.getItem('crono-reader-settings');
       if (saved) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+        return {
+          ...DEFAULT_SETTINGS,
+          ...JSON.parse(saved),
+          theme: isDark ? 'dark' : 'light',
+        };
       }
     } catch (e) {
       console.error('Failed to load reader settings', e);
     }
-    return DEFAULT_SETTINGS;
+    return {
+      ...DEFAULT_SETTINGS,
+      theme: isDark ? 'dark' : 'light',
+    };
   });
 
   useEffect(() => {
     localStorage.setItem('crono-reader-settings', JSON.stringify(settings));
   }, [settings]);
+
+  useEffect(() => {
+    setSettings(prev => {
+      const nextTheme = isDark ? 'dark' : 'light';
+      return prev.theme === nextTheme ? prev : { ...prev, theme: nextTheme };
+    });
+  }, [isDark]);
 
   // Article Content Crawl State
   const [articleHtml, setArticleHtml] = useState<string | null>(null);
@@ -744,6 +760,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
               appearance={showAiPanel ? 'primary' : 'subtle'}
               icon={<Sparkle24Regular style={{ color: showAiPanel ? undefined : 'var(--reader-text)' }} />}
               onClick={() => setShowAiPanel(!showAiPanel)}
+              style={{ color: 'var(--reader-text)' }}
             >
               AI 助手
             </Button>

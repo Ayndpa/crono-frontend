@@ -276,8 +276,9 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <ArticleReader
+              isDark={isDark}
               selectedArticle={activeArticle}
-              onToggleStar={() => { }}
+              onToggleStar={() => {}}
               showAiPanel={showAiPanel}
               setShowAiPanel={setShowAiPanel}
               onClose={() => setIsReaderOpen(false)}

@@ -671,7 +671,7 @@ const ChatApp = () => {
                 flexDirection: 'column',
                 overflow: 'hidden'
             }}>
-                <div style={{ padding: '17px', borderBottom: `1px solid ${tokens.colorNeutralStroke1}` }}>
+                <div style={{ padding: '22px', borderBottom: `1px solid ${tokens.colorNeutralStroke1}` }}>
                         <Button
                             appearance="primary"
                             icon={<Add24Regular />}
