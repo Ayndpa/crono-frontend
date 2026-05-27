@@ -13,6 +13,7 @@ import { Translate24Regular } from '@fluentui/react-icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
 import type { ArticleResponse } from '../model/article';
 import { apiFetch } from '../../api/client';
 import { consumeBase64JsonSse } from '../../api/stream';
@@ -25,6 +26,10 @@ interface ArticleTranslationProps {
 }
 
 const useStyles = makeStyles({
+  translationContainer: {
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+  },
   loadingContainer: {
     display: 'flex',
     alignItems: 'center',
@@ -48,6 +53,13 @@ const useStyles = makeStyles({
   markdownListItem: {
     marginBottom: '6px',
     lineHeight: '1.8',
+  },
+  markdownImage: {
+    display: 'block',
+    maxWidth: '100%',
+    height: 'auto',
+    margin: '12px auto',
+    borderRadius: '8px',
   },
   markdownLink: {
     color: 'var(--colorBrandForegroundLink)',
@@ -93,6 +105,15 @@ const useStyles = makeStyles({
   },
 });
 
+const normalizeTranslationText = (text: string) => {
+  const withMarkdownLinks = text.replace(
+    /<a\s+[^>]*href=("|')(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi,
+    (_match, _quote, href, linkText) => `[${linkText}](${href})`,
+  );
+
+  return withMarkdownLinks.replace(/\\r\\n|\\n|\\r/g, '\n');
+};
+
 export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article, url }) => {
   const styles = useStyles();
   const [translation, setTranslation] = useState<string>('');
@@ -134,7 +155,7 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
         }
 
         accumulated += event.text;
-        setTranslation(accumulated);
+        setTranslation(normalizeTranslationText(accumulated));
       });
     } catch (err) {
       setError((err as Error).message || '翻译失败，请稍后重试。');
@@ -152,7 +173,7 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
       setThinking('');
 
       if (article?.ai_translation) {
-        setTranslation(article.ai_translation);
+        setTranslation(normalizeTranslationText(article.ai_translation));
         setIsCheckingCache(false);
         return;
       }
@@ -177,7 +198,7 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
 
         const data = await response.json();
         if (!ignore && data.translation) {
-          setTranslation(data.translation);
+          setTranslation(normalizeTranslationText(data.translation));
         }
       } catch (err) {
         if (!ignore) {
@@ -229,34 +250,38 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
       )}
       {thinking && <ThinkingBlock content={thinking} label="AI 思考" />}
       {translation && (
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkBreaks]}
-          components={{
-            p: ({ node, ...props }) => <Text as="p" className={styles.markdownText} {...props} />,
-            h1: ({ node, ...props }) => <Text as="h1" size={700} weight="bold" className={styles.markdownHeading} {...props} />,
-            h2: ({ node, ...props }) => <Text as="h2" size={600} weight="bold" className={styles.markdownHeading} {...props} />,
-            h3: ({ node, ...props }) => <Text as="h3" size={500} weight="bold" className={styles.markdownHeading} {...props} />,
-            li: ({ node, ...props }) => <li className={styles.markdownListItem} {...props} />,
-            ul: ({ node, ...props }) => <ul className={styles.markdownList} {...props} />,
-            ol: ({ node, ...props }) => <ol className={styles.markdownList} {...props} />,
-            strong: ({ node, ...props }) => <Text as="strong" weight="bold" {...props} />,
-            em: ({ node, ...props }) => <Text as="em" italic {...props} />,
-            a: ({ node, ...props }) => <a className={styles.markdownLink} target="_blank" rel="noopener noreferrer" {...props} />,
-            code: ({ node, inline, className, children, ...props }: { node?: any; inline?: boolean; className?: string; children?: React.ReactNode; [key: string]: any }) => {
-              const match = /language-(\w+)/.exec(className || '');
-              return !inline && match ? (
-                <pre className={styles.markdownCodeBlock}>
-                  <code className={className} {...props}>{children}</code>
-                </pre>
-              ) : (
-                <code className={styles.markdownInlineCode} {...props}>{children}</code>
-              );
-            },
-            blockquote: ({ node, ...props }) => <blockquote className={styles.markdownBlockquote} {...props} />,
-          }}
-        >
-          {translation}
-        </ReactMarkdown>
+        <div className={styles.translationContainer}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkBreaks]}
+            rehypePlugins={[rehypeRaw]}
+            components={{
+              p: ({ node, ...props }) => <Text as="p" className={styles.markdownText} {...props} />,
+              h1: ({ node, ...props }) => <Text as="h1" size={700} weight="bold" className={styles.markdownHeading} {...props} />,
+              h2: ({ node, ...props }) => <Text as="h2" size={600} weight="bold" className={styles.markdownHeading} {...props} />,
+              h3: ({ node, ...props }) => <Text as="h3" size={500} weight="bold" className={styles.markdownHeading} {...props} />,
+              li: ({ node, ...props }) => <li className={styles.markdownListItem} {...props} />,
+              ul: ({ node, ...props }) => <ul className={styles.markdownList} {...props} />,
+              ol: ({ node, ...props }) => <ol className={styles.markdownList} {...props} />,
+              img: ({ node, ...props }) => <img className={styles.markdownImage} alt={props.alt || ''} {...props} />,
+              strong: ({ node, ...props }) => <Text as="strong" weight="bold" {...props} />,
+              em: ({ node, ...props }) => <Text as="em" italic {...props} />,
+              a: ({ node, ...props }) => <a className={styles.markdownLink} target="_blank" rel="noopener noreferrer" {...props} />,
+              code: ({ node, inline, className, children, ...props }: { node?: any; inline?: boolean; className?: string; children?: React.ReactNode; [key: string]: any }) => {
+                const match = /language-(\w+)/.exec(className || '');
+                return !inline && match ? (
+                  <pre className={styles.markdownCodeBlock}>
+                    <code className={className} {...props}>{children}</code>
+                  </pre>
+                ) : (
+                  <code className={styles.markdownInlineCode} {...props}>{children}</code>
+                );
+              },
+              blockquote: ({ node, ...props }) => <blockquote className={styles.markdownBlockquote} {...props} />,
+            }}
+          >
+            {translation}
+          </ReactMarkdown>
+        </div>
       )}
       {!translation && !isLoading && !isCheckingCache && (
         <div className={styles.startArea}>

@@ -15,6 +15,7 @@ import { DocumentSparkle24Regular } from '@fluentui/react-icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
 import type { ArticleResponse } from '../model/article';
 import { apiFetch } from '../../api/client';
 import { consumeBase64JsonSse } from '../../api/stream';
@@ -35,7 +36,8 @@ const useStyles = makeStyles({
         ...shorthands.padding('16px', '0'),
     },
     markdownContainer: {
-        // 移除 whiteSpace: 'pre-wrap'，交给 ReactMarkdown 处理
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
     },
     // Markdown 组件样式
     markdownText: {
@@ -58,6 +60,13 @@ const useStyles = makeStyles({
         '& p': {
             marginBottom: '4px',
         }
+    },
+    markdownImage: {
+        display: 'block',
+        maxWidth: '100%',
+        height: 'auto',
+        margin: '12px auto',
+        borderRadius: '8px',
     },
     markdownLink: {
         color: 'var(--colorBrandForegroundLink)',
@@ -106,6 +115,15 @@ const useStyles = makeStyles({
     },
 });
 
+const normalizeSummaryText = (text: string) => {
+    const withMarkdownLinks = text.replace(
+        /<a\s+[^>]*href=("|')(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi,
+        (_match, _quote, href, linkText) => `[${linkText}](${href})`,
+    );
+
+    return withMarkdownLinks.replace(/\\r\\n|\\n|\\r/g, '\n');
+};
+
 export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) => {
     // 2. 调用 useStyles hook 获取 styles
     const styles = useStyles();
@@ -151,7 +169,7 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
                 }
 
                 accumulatedContent += event.text;
-                setSummary(accumulatedContent);
+                setSummary(normalizeSummaryText(accumulatedContent));
             });
         } catch (err) {
             console.error('Failed to fetch summary:', err);
@@ -170,7 +188,7 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
             setThinking('');
 
             if (article?.ai_summary) {
-                setSummary(article.ai_summary);
+                setSummary(normalizeSummaryText(article.ai_summary));
                 setIsCheckingCache(false);
                 return;
             }
@@ -195,7 +213,7 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
 
                 const data = await response.json();
                 if (!ignore && data.summary) {
-                    setSummary(data.summary);
+                    setSummary(normalizeSummaryText(data.summary));
                 }
             } catch (err) {
                 if (!ignore) {
@@ -252,6 +270,7 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
                 <div className={styles.markdownContainer}>
                     <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkBreaks]}
+                        rehypePlugins={[rehypeRaw]}
                         components={{
                             p: ({ node, ...props }) => <Text as="p" className={styles.markdownText} {...props} />,
                             h1: ({ node, ...props }) => <Text as="h1" size={700} weight="bold" className={styles.markdownHeading} {...props} />,
@@ -260,6 +279,7 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
                             li: ({ node, ...props }) => <li className={styles.markdownListItem} {...props} />,
                             ul: ({ node, ...props }) => <ul className={styles.markdownList} {...props} />,
                             ol: ({ node, ...props }) => <ol className={styles.markdownList} {...props} />,
+                            img: ({ node, ...props }) => <img className={styles.markdownImage} alt={props.alt || ''} {...props} />,
                             strong: ({ node, ...props }) => <Text as="strong" weight="bold" {...props} />,
                             em: ({ node, ...props }) => <Text as="em" italic {...props} />,
                             a: ({ node, ...props }) => <a className={styles.markdownLink} target="_blank" rel="noopener noreferrer" {...props} />,

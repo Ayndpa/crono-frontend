@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { makeStyles, Spinner } from '@fluentui/react-components';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { streamEntityExplain, type Entity } from '../api/entityApi';
 import type { ArticleResponse } from '../model/article';
 import { ThinkingBlock } from '../../components/ThinkingBlock';
@@ -126,7 +127,7 @@ export const EntityExplainPopover: React.FC<EntityExplainPopoverProps> = ({
       ) : (
         <div className={styles.content}>
           {thinking && <ThinkingBlock content={thinking} label="模型思考" />}
-          <ReactMarkdown>{text}</ReactMarkdown>
+          <ReactMarkdown rehypePlugins={[rehypeRaw]}>{text}</ReactMarkdown>
         </div>
       )}
     </div>

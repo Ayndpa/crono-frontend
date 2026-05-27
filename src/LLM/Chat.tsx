@@ -35,6 +35,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
 import { apiFetch } from '../api/client';
 import { consumeBase64JsonSse } from '../api/stream';
 import { ThinkingBlock } from '../components/ThinkingBlock';
@@ -414,6 +415,7 @@ const ChatApp = () => {
                                 <ReactMarkdown
                                     children={message.content}
                                     remarkPlugins={[remarkGfm, remarkBreaks]}
+                                    rehypePlugins={[rehypeRaw]}
                                 />
                             )}
                             {!isUser && !message.content.trim() && message.thinking?.trim() && (

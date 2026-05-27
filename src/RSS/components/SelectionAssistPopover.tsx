@@ -22,6 +22,7 @@ import {
   Translate24Regular,
 } from '@fluentui/react-icons';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { apiFetch } from '../../api/client';
 import { consumeBase64JsonSse } from '../../api/stream';
 import { ThinkingBlock } from '../../components/ThinkingBlock';
@@ -403,7 +404,7 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
           ) : (
             <>
               {activeAction && <Text size={200}>{activeAction === 'explain' ? '解释' : activeAction === 'summary' ? '总结' : '翻译'}</Text>}
-              <ReactMarkdown>{result}</ReactMarkdown>
+                <ReactMarkdown rehypePlugins={[rehypeRaw]}>{result}</ReactMarkdown>
             </>
           )}
         </div>

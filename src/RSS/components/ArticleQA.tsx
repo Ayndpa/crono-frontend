@@ -11,6 +11,7 @@ import { Send24Regular } from '@fluentui/react-icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
 import type { ArticleResponse } from '../model/article';
 import { apiFetch } from '../../api/client';
 import { consumeBase64JsonSse } from '../../api/stream';
@@ -200,7 +201,7 @@ export const ArticleQA: React.FC<ArticleQAProps> = ({ article, url }) => {
                                 <>
                                     {msg.thinking && <ThinkingBlock content={msg.thinking} label="模型思考" />}
                                     {msg.content && (
-                                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
                                             {msg.content}
                                         </ReactMarkdown>
                                     )}
