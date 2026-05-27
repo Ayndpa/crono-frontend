@@ -6,7 +6,19 @@ export interface StreamEvent {
 }
 
 function decodeStreamEvent(encoded: string): StreamEvent {
-  const decoded = atob(encoded);
+  let decoded = '';
+  try {
+    const binString = atob(encoded);
+    const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+    decoded = new TextDecoder('utf-8').decode(bytes);
+  } catch (e) {
+    console.error('Base64 or UTF-8 decoding failed, falling back:', e);
+    try {
+      decoded = atob(encoded);
+    } catch {
+      decoded = encoded;
+    }
+  }
 
   try {
     const parsed = JSON.parse(decoded) as Partial<StreamEvent>;
