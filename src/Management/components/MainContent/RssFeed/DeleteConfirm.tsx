@@ -53,6 +53,7 @@ export const DeleteConfirm: React.FC<{
             <DialogTrigger disableButtonEnhancement>
                 <Tooltip content="删除" relationship="label">
                     <Button
+                        size="small"
                         icon={<Delete24Regular />}
                         aria-label="删除"
                         disabled={loading}
