@@ -15,7 +15,6 @@ import {
   DialogActions,
   makeStyles,
   Card,
-  Divider,
   Tooltip,
   tokens,
 } from '@fluentui/react-components';
@@ -28,23 +27,46 @@ const useStyles = makeStyles({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
+    gap: '16px',
   },
   card: {
-    width: '100%',
-    marginLeft: 'auto',
-    marginRight: 'auto',
+    padding: '24px',
+    borderRadius: '12px',
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    backgroundColor: tokens.colorNeutralBackground1,
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
+  },
+  actionBar: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+    marginBottom: '12px',
   },
   spinnerContainer: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    height: '100%',
+    height: '150px',
+  },
+  tableHeader: {
+    backgroundColor: tokens.colorNeutralBackground2,
+  },
+  tableHeaderCell: {
+    fontWeight: tokens.fontWeightSemibold,
+    fontSize: tokens.fontSizeBase300,
+    padding: '12px 8px',
+  },
+  tableRow: {
+    '&:hover': {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+    },
+  },
+  tableCell: {
+    padding: '12px 8px',
   },
   tableActions: {
     display: 'flex',
     alignItems: 'center',
-    gap: tokens.spacingHorizontalS,
+    gap: '8px',
   },
   iconBtn: {
     minWidth: 'unset',
@@ -52,10 +74,13 @@ const useStyles = makeStyles({
   defaultBadge: {
     display: 'flex',
     alignItems: 'center',
-    gap: tokens.spacingHorizontalXS,
+    gap: '6px',
     color: tokens.colorBrandForeground1,
     fontSize: tokens.fontSizeBase200,
     fontWeight: tokens.fontWeightSemibold,
+    padding: '2px 8px',
+    borderRadius: '12px',
+    backgroundColor: tokens.colorBrandBackground2,
   },
 });
 
@@ -79,8 +104,10 @@ function LLMSetting() {
   return (
     <div className={styles.root}>
       <Card className={styles.card}>
-        <EditForm onSubmit={handleCreate} triggerBtnText="添加新配置" triggerBtnAppearance="primary" />
-        <Divider />
+        <div className={styles.actionBar}>
+          <EditForm onSubmit={handleCreate} triggerBtnText="添加新配置" triggerBtnAppearance="primary" />
+        </div>
+        
         {loading ? (
           <div className={styles.spinnerContainer}>
             <Spinner label="正在加载配置..." />
@@ -93,23 +120,23 @@ function LLMSetting() {
           </MessageBar>
         ) : (
           <Table aria-label="模型配置表">
-            <TableHeader>
+            <TableHeader className={styles.tableHeader}>
               <TableRow>
-                <TableHeaderCell>模型名称</TableHeaderCell>
-                <TableHeaderCell>Base URL</TableHeaderCell>
-                <TableHeaderCell>API Key</TableHeaderCell>
-                <TableHeaderCell style={{ minWidth: '160px' }}>操作</TableHeaderCell>
+                <TableHeaderCell className={styles.tableHeaderCell}>模型名称</TableHeaderCell>
+                <TableHeaderCell className={styles.tableHeaderCell}>Base URL</TableHeaderCell>
+                <TableHeaderCell className={styles.tableHeaderCell}>API Key</TableHeaderCell>
+                <TableHeaderCell className={styles.tableHeaderCell} style={{ minWidth: '180px' }}>操作</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
               {configs.map((cfg) => (
-                <TableRow key={cfg.id}>
-                  <TableCell>{cfg.model}</TableCell>
-                  <TableCell>{cfg.base_url}</TableCell>
-                  <TableCell>
+                <TableRow key={cfg.id} className={styles.tableRow}>
+                  <TableCell className={styles.tableCell}>{cfg.model}</TableCell>
+                  <TableCell className={styles.tableCell}>{cfg.base_url}</TableCell>
+                  <TableCell className={styles.tableCell}>
                     {cfg.api_key ? '********' : '未设置'}
                   </TableCell>
-                  <TableCell style={{ minWidth: '160px' }}>
+                  <TableCell className={styles.tableCell} style={{ minWidth: '180px' }}>
                     <div className={styles.tableActions}>
                       <Tooltip content="编辑" relationship="label">
                         <EditForm
@@ -128,7 +155,7 @@ function LLMSetting() {
                       </Tooltip>
                       {currentConfigId === cfg.id.toString() ? (
                         <span className={styles.defaultBadge}>
-                          <CheckmarkCircleFilled style={{ color: tokens.colorBrandForeground1 }} />
+                          <CheckmarkCircleFilled style={{ color: tokens.colorBrandForeground1, fontSize: '14px' }} />
                           当前配置
                         </span>
                       ) : (

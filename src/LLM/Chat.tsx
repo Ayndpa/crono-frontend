@@ -25,7 +25,6 @@ import {
     Settings24Regular,
     Lightbulb24Regular,
     Sparkle24Regular,
-    History24Regular,
     ArrowReset24Regular,
     Add24Regular,
     Copy24Regular,
@@ -573,9 +572,6 @@ const ChatApp = () => {
                         </div>
 
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        <Tooltip content="历史记录" relationship="label">
-                            <Button icon={<History24Regular />} appearance="subtle" />
-                        </Tooltip>
                         <Tooltip content="设置" relationship="label">
                             <Button icon={<Settings24Regular />} appearance="subtle" onClick={() => setShowSettings(!showSettings)} />
                         </Tooltip>

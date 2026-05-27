@@ -1,7 +1,6 @@
 import {
     Card,
     Button,
-    Divider,
     DataGrid,
     DataGridHeader,
     DataGridHeaderCell,
@@ -10,6 +9,7 @@ import {
     DataGridCell,
     Tooltip,
     makeStyles,
+    tokens,
     type TableColumnDefinition,
 } from '@fluentui/react-components';
 import {
@@ -28,33 +28,73 @@ const useStyles = makeStyles({
     root: {
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
+        gap: '16px',
     },
     card: {
-        width: '100%',
-        marginLeft: 'auto',
-        marginRight: 'auto',
+        padding: '24px',
+        borderRadius: '12px',
+        border: `1px solid ${tokens.colorNeutralStroke2}`,
+        backgroundColor: tokens.colorNeutralBackground1,
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
     },
-    addContainer: {
+    actionBar: {
         display: 'flex',
-        gap: '16px',
-        alignItems: 'flex-end',
-    },
-    field: {
-        flexGrow: 1,
+        gap: '12px',
+        alignItems: 'center',
+        marginBottom: '16px',
     },
     actionsContainer: {
         display: 'flex',
         gap: '8px',
     },
+    statusActive: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '2px 8px',
+        borderRadius: '10px',
+        backgroundColor: 'rgba(16, 124, 65, 0.08)',
+        color: '#107c41',
+        fontSize: tokens.fontSizeBase200,
+        fontWeight: tokens.fontWeightSemibold,
+    },
+    statusInactive: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '2px 8px',
+        borderRadius: '10px',
+        backgroundColor: 'rgba(168, 0, 0, 0.08)',
+        color: '#a80000',
+        fontSize: tokens.fontSizeBase200,
+        fontWeight: tokens.fontWeightSemibold,
+    },
+    statusDot: {
+        width: '6px',
+        height: '6px',
+        borderRadius: '50%',
+        backgroundColor: 'currentColor',
+    },
+    tableHeader: {
+        backgroundColor: tokens.colorNeutralBackground2,
+    },
+    tableHeaderCell: {
+        fontWeight: tokens.fontWeightSemibold,
+        fontSize: tokens.fontSizeBase300,
+    },
+    cellText: {
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+    }
 });
 
 // --- 主要组件 ---
 const FeedsSetting = () => {
     const styles = useStyles();
     const [feeds, setFeeds] = useState<Feed[]>([]);
-    const [refreshingFeedId, setRefreshingFeedId] = useState<number | null>(null); // 添加状态
-    const [refreshingAll, setRefreshingAll] = useState(false); // 添加状态
+    const [refreshingFeedId, setRefreshingFeedId] = useState<number | null>(null);
+    const [refreshingAll, setRefreshingAll] = useState(false);
 
     const fetchFeeds = async () => {
         try {
@@ -101,7 +141,7 @@ const FeedsSetting = () => {
             renderHeaderCell: () => '名称',
             renderCell: (item) => (
                 <Tooltip content={item.name} relationship="label">
-                    <span>{item.name}</span>
+                    <span className={styles.cellText}>{item.name}</span>
                 </Tooltip>
             ),
             compare: (a, b) => a.name.localeCompare(b.name),
@@ -109,13 +149,22 @@ const FeedsSetting = () => {
         {
             columnId: 'url',
             renderHeaderCell: () => '订阅源 URL',
-            renderCell: (item) => item.url,
+            renderCell: (item) => (
+                <Tooltip content={item.url} relationship="label">
+                    <span className={styles.cellText}>{item.url}</span>
+                </Tooltip>
+            ),
             compare: (a, b) => a.url.localeCompare(b.url),
         },
         {
             columnId: 'is_active',
-            renderHeaderCell: () => '是否激活',
-            renderCell: (item) => (item.is_active ? '是' : '否'),
+            renderHeaderCell: () => '状态',
+            renderCell: (item) => (
+                <span className={item.is_active ? styles.statusActive : styles.statusInactive}>
+                    <span className={styles.statusDot}></span>
+                    {item.is_active ? '活跃' : '失效'}
+                </span>
+            ),
             compare: (a, b) => Number(b.is_active) - Number(a.is_active),
         },
         {
@@ -127,7 +176,7 @@ const FeedsSetting = () => {
                         feed={item}
                         trigger={
                             <Tooltip content="编辑" relationship="label">
-                                <Button icon={<Edit24Regular />} aria-label="编辑" />
+                                <Button size="small" icon={<Edit24Regular />} aria-label="编辑" />
                             </Tooltip>
                         }
                         onSuccess={fetchFeeds}
@@ -139,12 +188,12 @@ const FeedsSetting = () => {
                     />
                     <Tooltip content={refreshingFeedId === item.id ? '正在刷新...' : '刷新'} relationship="label">
                         <Button
+                            size="small"
                             icon={<PenSync24Regular />}
                             aria-label="刷新"
-                            disabled={refreshingFeedId === item.id} // 禁用按钮
+                            disabled={refreshingFeedId === item.id}
                             onClick={() => handleRefreshFeed(item.id ?? 0)}
-                        >
-                        </Button>
+                        />
                     </Tooltip>
                 </div>
             ),
@@ -155,38 +204,36 @@ const FeedsSetting = () => {
     return (
         <div className={styles.root}>
             <Card className={styles.card}>
-                <div className={styles.addContainer}>
+                <div className={styles.actionBar}>
                     <AddOrUpdateDialog
                         trigger={
                             <Button appearance="primary" icon={<Add24Filled />}>
                                 添加订阅
                             </Button>
                         }
-                        onSuccess={fetchFeeds} // 确保更新后刷新数据
+                        onSuccess={fetchFeeds}
                     />
                     <Tooltip content={refreshingAll ? '正在刷新...' : '刷新全部订阅源'} relationship="label">
                         <Button
                             appearance="secondary"
-                            disabled={refreshingAll} // 禁用按钮
+                            disabled={refreshingAll}
                             onClick={handleRefreshAllFeeds}
                         >
                             {refreshingAll ? '刷新中...' : '刷新全部订阅源'}
                         </Button>
                     </Tooltip>
                 </div>
-                <Divider />
 
-                {/* === 2. 订阅源列表 (Read) === */}
                 <DataGrid
-                    items={feeds} // 确保绑定最新状态
+                    items={feeds}
                     columns={columns(styles, fetchFeeds)}
                     getRowId={(item) => item.id}
                     aria-label="RSS订阅源列表"
                 >
-                    <DataGridHeader>
+                    <DataGridHeader className={styles.tableHeader}>
                         <DataGridRow>
                             {(column) => (
-                                <DataGridHeaderCell key={column.columnId}>
+                                <DataGridHeaderCell key={column.columnId} className={styles.tableHeaderCell}>
                                     {column.renderHeaderCell()}
                                 </DataGridHeaderCell>
                             )}
