@@ -6,6 +6,8 @@ import { ArticleReader } from './components/ArticleReader';
 import { ArticleList } from './components/ArticleList/ArticleList';
 import { ArticleListItem } from './components/ArticleList/ArticleListItem';
 import { ReaderPage } from './components/Reader/ReaderPage';
+import { AiAssistPanel } from './components/AiAssistPanel';
+import { SelectionAssistPopover } from './components/SelectionAssistPopover';
 import Split from 'react-split';
 import './App.css';
 import { useRSSData } from './useApp';
@@ -135,14 +137,16 @@ const useStyles = makeStyles({
     left: 0,
     width: '100vw',
     height: '100vh',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.42)',
+    backdropFilter: 'blur(4px)',
     zIndex: 1000,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalSurface: {
-    backgroundColor: 'var(--colorNeutralBackground1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+    backdropFilter: 'blur(12px)',
     boxShadow: '0 16px 48px rgba(0, 0, 0, 0.24)',
     overflow: 'hidden',
     display: 'flex',
@@ -163,6 +167,11 @@ const DEFAULT_MODAL_SIZE = { width: 900, height: 650 };
 
 type ModalPosition = { top: number; left: number };
 type ModalSize = { width: number; height: number };
+type SelectionState = {
+  text: string;
+  context: string;
+  rect: { top: number; left: number; width: number; height: number; bottom: number };
+} | null;
 
 const getViewportBounds = () => {
   if (typeof window === 'undefined') {
@@ -218,6 +227,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
   const styles = useStyles();
   const [activeView, setActiveView] = useState<'rss' | 'browser' | 'chat'>('rss');
   const [showAiPanel, setShowAiPanel] = useState(false);
+  const [selectionState, setSelectionState] = useState<SelectionState>(null);
   const [showArticleSearch, setShowArticleSearch] = useState(false);
   const [articleSearchQuery, setArticleSearchQuery] = useState('');
   const [selectedFeedId, setSelectedFeedId] = useState<string>('all');
@@ -431,6 +441,15 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
 
   const activeArticle = customArticle || selectedArticle;
 
+  const handleLocateSelection = useCallback(() => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const element = range.startContainer.parentElement;
+      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
   return (
     <div className="app-container">
       <Header
@@ -610,6 +629,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
               onToggleStar={() => {}}
               showAiPanel={showAiPanel}
               setShowAiPanel={setShowAiPanel}
+              onSelectionChange={setSelectionState}
               onClose={() => setIsReaderOpen(false)}
               isFullscreen={isFullscreen}
               setIsFullscreen={setIsFullscreen}
@@ -620,6 +640,24 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
             />
           </div>
         </div>
+      )}
+
+      {isReaderOpen && activeArticle && showAiPanel && (
+        <AiAssistPanel
+          article={activeArticle}
+          onClose={() => setShowAiPanel(false)}
+        />
+      )}
+
+      {isReaderOpen && activeArticle && selectionState && (
+        <SelectionAssistPopover
+          text={selectionState.text}
+          context={selectionState.context}
+          articleTitle={activeArticle.title}
+          anchorRect={selectionState.rect}
+          onLocate={handleLocateSelection}
+          onClose={() => setSelectionState(null)}
+        />
       )}
     </div>
   );

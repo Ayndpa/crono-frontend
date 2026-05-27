@@ -25,6 +25,10 @@ import {
 
 // 定义样式
 const useStyles = makeStyles({
+  dialogBackdrop: {
+    backgroundColor: 'rgba(15, 23, 42, 0.42)',
+    backdropFilter: 'blur(4px)',
+  },
   dialogSurface: {
     height: '85vh',
     width: '90vw',
@@ -33,6 +37,8 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column',
     padding: '0px !important', // 覆盖默认内边距以实现侧边栏贴边
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+    backdropFilter: 'blur(12px)',
     boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
     overflow: 'hidden',
   },
@@ -144,7 +150,7 @@ const ManagementDialog: React.FC<ManagementDialogProps> = ({ open, onOpenChange 
           </Tooltip>
         </DialogTrigger>
       )}
-      <DialogSurface className={styles.dialogSurface}>
+      <DialogSurface className={styles.dialogSurface} backdrop={{ className: styles.dialogBackdrop }}>
         <DialogBody className={styles.dialogBody}>
           {/* 顶栏 */}
           <div className={styles.header}>

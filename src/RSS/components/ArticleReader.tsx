@@ -20,8 +20,6 @@ import {
   ArrowMinimize24Regular,
   ArrowClockwise24Regular,
 } from '@fluentui/react-icons';
-import { AiAssistPanel } from './AiAssistPanel';
-import { SelectionAssistPopover } from './SelectionAssistPopover';
 import type { ArticleResponse } from '../model/article';
 import { apiFetch } from '../../api/client';
 import DOMPurify from 'dompurify';
@@ -32,6 +30,11 @@ interface ArticleReaderProps {
   onToggleStar: (id: number) => void;
   showAiPanel: boolean;
   setShowAiPanel: (show: boolean) => void;
+  onSelectionChange: (selection: {
+    text: string;
+    context: string;
+    rect: { top: number; left: number; width: number; height: number; bottom: number };
+  } | null) => void;
   onClose: () => void;
   isFullscreen: boolean;
   setIsFullscreen: (isFullscreen: boolean) => void;
@@ -453,16 +456,19 @@ const useStyles = makeStyles({
 const ArticleContent = React.memo(({ 
   html, 
   className, 
+  onMouseDown,
   onMouseUp 
 }: { 
   html: string; 
   className: string; 
-  onMouseUp: () => void 
+  onMouseDown?: () => void;
+  onMouseUp?: () => void 
 }) => {
   return (
     <div
       className={className}
       dangerouslySetInnerHTML={{ __html: html }}
+      onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
     />
   );
@@ -473,6 +479,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
   selectedArticle,
   showAiPanel,
   setShowAiPanel,
+  onSelectionChange,
   onClose,
   isFullscreen,
   setIsFullscreen,
@@ -525,12 +532,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  const [selectionState, setSelectionState] = useState<{
-    text: string;
-    context: string;
-    rect: { top: number; left: number; width: number; height: number; bottom: number };
-  } | null>(null);
+  const selectionPendingRef = useRef(false);
 
   // Drag modal handler (triggered by clicking header)
   const handleDragStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -593,13 +595,13 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
     setTimeout(() => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed) {
-        setSelectionState(null);
+        onSelectionChange(null);
         return;
       }
       
       const text = selection.toString().trim();
       if (!text) {
-        setSelectionState(null);
+        onSelectionChange(null);
         return;
       }
 
@@ -608,7 +610,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
       const contextElement = range.commonAncestorContainer.parentElement;
       const context = contextElement ? contextElement.textContent || text : text;
 
-      setSelectionState({
+      onSelectionChange({
         text,
         context: context.substring(0, 1000),
         rect: {
@@ -620,7 +622,25 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
         }
       });
     }, 10);
+  }, [onSelectionChange]);
+
+  const handleSelectionStart = useCallback(() => {
+    selectionPendingRef.current = true;
   }, []);
+
+  useEffect(() => {
+    const handleDocumentMouseUp = () => {
+      if (!selectionPendingRef.current) {
+        return;
+      }
+
+      selectionPendingRef.current = false;
+      handleSelection();
+    };
+
+    document.addEventListener('mouseup', handleDocumentMouseUp);
+    return () => document.removeEventListener('mouseup', handleDocumentMouseUp);
+  }, [handleSelection]);
 
   // Handle Scroll to update progress bar and Back to Top visibility
   const handleScroll = useCallback(() => {
@@ -683,6 +703,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
   // Reset and Refetch when selectedArticle changes
   useEffect(() => {
     setShowAiPanel(false);
+    onSelectionChange(null);
     setArticleHtml(null);
     setArticleTitle(selectedArticle?.title || '');
     setUseFallbackIframe(false);
@@ -690,7 +711,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
     setShowBackToTop(false);
 
     loadContent(false);
-  }, [selectedArticle?.id, selectedArticle?.link, loadContent]);
+  }, [onSelectionChange, selectedArticle?.id, selectedArticle?.link, loadContent, setShowAiPanel]);
 
   if (!selectedArticle) {
     return (
@@ -957,7 +978,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
             <ArticleContent
               className={styles.articleHtml}
               html={articleHtml ?? ''}
-              onMouseUp={handleSelection}
+              onMouseDown={handleSelectionStart}
             />
           )}
         </div>
@@ -983,32 +1004,6 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
         <div className={styles.resizeHandle} onMouseDown={handleResizeStart} />
       )}
 
-      {/* AI Panel */}
-      {showAiPanel && (
-        <AiAssistPanel
-          article={selectedArticle}
-          onClose={() => setShowAiPanel(false)}
-        />
-      )}
-
-      {/* Selection Assist Popover */}
-      {selectionState && selectedArticle && (
-        <SelectionAssistPopover
-          text={selectionState.text}
-          context={selectionState.context}
-          articleTitle={selectedArticle.title}
-          anchorRect={selectionState.rect}
-          onLocate={() => {
-            const selection = window.getSelection();
-            if (selection && selection.rangeCount > 0) {
-              const range = selection.getRangeAt(0);
-              const element = range.startContainer.parentElement;
-              element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }}
-          onClose={() => setSelectionState(null)}
-        />
-      )}
     </div>
   );
 };

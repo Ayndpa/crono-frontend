@@ -59,13 +59,6 @@ const useStyles = makeStyles({
     cursor: 'move',
     flexShrink: 0,
   },
-  selectedText: {
-    color: 'var(--colorNeutralForeground2)',
-    fontSize: '12px',
-    lineHeight: '1.5',
-    maxHeight: '54px',
-    overflow: 'hidden',
-  },
   headerActions: {
     display: 'flex',
     alignItems: 'center',
@@ -303,7 +296,6 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
       style={{ top: position.top, left: position.left, width: size.width, height: size.height }}
     >
       <div className={styles.header} onMouseDown={handleDragStart}>
-        <Text className={styles.selectedText}>{text}</Text>
         <div className={styles.headerActions} onMouseDown={event => event.stopPropagation()}>
           <Button appearance="subtle" icon={<Target24Regular />} onClick={onLocate} />
           <Button appearance="subtle" icon={<Dismiss24Regular />} onClick={onClose} />
