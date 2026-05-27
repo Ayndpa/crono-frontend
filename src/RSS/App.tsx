@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useState, useEffect, useMemo, type KeyboardEvent } from 'react';
+import { useState, useEffect, useMemo, type KeyboardEvent, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ArticleReader } from './components/ArticleReader';
@@ -24,6 +24,29 @@ import ChatApp from '../LLM/Chat';
 
 import type { AuthUser } from '../api/auth';
 import type { ArticleResponse } from './model/article';
+
+const SIDEBAR_SPLIT_STORAGE_KEY = 'crono-rss-sidebar-split-sizes';
+const DEFAULT_SPLIT_SIZES: [number, number] = [22, 78];
+
+function readSavedSidebarSplitSizes(): [number, number] {
+  try {
+    const saved = localStorage.getItem(SIDEBAR_SPLIT_STORAGE_KEY);
+    if (!saved) return DEFAULT_SPLIT_SIZES;
+
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed) || parsed.length < 2) return DEFAULT_SPLIT_SIZES;
+
+    const sidebarWidth = Number(parsed[0]);
+    const articleWidth = Number(parsed[1]);
+    if (!Number.isFinite(sidebarWidth) || !Number.isFinite(articleWidth)) {
+      return DEFAULT_SPLIT_SIZES;
+    }
+
+    return [sidebarWidth, articleWidth];
+  } catch {
+    return DEFAULT_SPLIT_SIZES;
+  }
+}
 
 interface AppProps {
   isDark: boolean;
@@ -125,9 +148,60 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column',
     position: 'absolute',
+    boxSizing: 'border-box',
+    maxWidth: 'calc(100vw - 32px)',
+    maxHeight: 'calc(100vh - 32px)',
     ...shorthands.borderRadius('12px'),
   },
 });
+
+const MODAL_MARGIN = 16;
+const MODAL_MIN_WIDTH = 600;
+const MODAL_MIN_HEIGHT = 400;
+const DEFAULT_MODAL_POSITION = { top: 100, left: 100 };
+const DEFAULT_MODAL_SIZE = { width: 900, height: 650 };
+
+type ModalPosition = { top: number; left: number };
+type ModalSize = { width: number; height: number };
+
+const getViewportBounds = () => {
+  if (typeof window === 'undefined') {
+    return {
+      width: DEFAULT_MODAL_SIZE.width + MODAL_MARGIN * 2,
+      height: DEFAULT_MODAL_SIZE.height + MODAL_MARGIN * 2,
+    };
+  }
+
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+};
+
+const clampModalSize = (size: ModalSize, viewport = getViewportBounds()): ModalSize => {
+  const availableWidth = Math.max(0, viewport.width - MODAL_MARGIN * 2);
+  const availableHeight = Math.max(0, viewport.height - MODAL_MARGIN * 2);
+
+  const width = availableWidth < MODAL_MIN_WIDTH
+    ? availableWidth
+    : Math.min(Math.max(size.width, MODAL_MIN_WIDTH), availableWidth);
+
+  const height = availableHeight < MODAL_MIN_HEIGHT
+    ? availableHeight
+    : Math.min(Math.max(size.height, MODAL_MIN_HEIGHT), availableHeight);
+
+  return { width, height };
+};
+
+const clampModalPosition = (position: ModalPosition, size: ModalSize, viewport = getViewportBounds()): ModalPosition => {
+  const maxLeft = Math.max(MODAL_MARGIN, viewport.width - MODAL_MARGIN - size.width);
+  const maxTop = Math.max(MODAL_MARGIN, viewport.height - MODAL_MARGIN - size.height);
+
+  return {
+    left: Math.min(Math.max(position.left, MODAL_MARGIN), maxLeft),
+    top: Math.min(Math.max(position.top, MODAL_MARGIN), maxTop),
+  };
+};
 
 function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
   const {
@@ -147,6 +221,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
   const [showArticleSearch, setShowArticleSearch] = useState(false);
   const [articleSearchQuery, setArticleSearchQuery] = useState('');
   const [selectedFeedId, setSelectedFeedId] = useState<string>('all');
+  const [sidebarSplitSizes, setSidebarSplitSizes] = useState<[number, number]>(() => readSavedSidebarSplitSizes());
 
   // Custom article for URLs opened via helper reader
   const [customArticle, setCustomArticle] = useState<ArticleResponse | null>(null);
@@ -161,21 +236,61 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
     }
   });
 
-  const [modalPosition, setModalPosition] = useState<{ top: number; left: number }>(() => {
+  const [modalPosition, setModalPosition] = useState<ModalPosition>(() => {
     try {
       const saved = localStorage.getItem('crono-reader-modal-position');
-      if (saved) return JSON.parse(saved);
+      if (saved) return clampModalPosition(JSON.parse(saved) as ModalPosition, clampModalSize(DEFAULT_MODAL_SIZE));
     } catch {}
-    return { top: 100, left: 100 };
+    return DEFAULT_MODAL_POSITION;
   });
 
-  const [modalSize, setModalSize] = useState<{ width: number; height: number }>(() => {
+  const [modalSize, setModalSize] = useState<ModalSize>(() => {
     try {
       const saved = localStorage.getItem('crono-reader-modal-size');
-      if (saved) return JSON.parse(saved);
+      if (saved) return clampModalSize(JSON.parse(saved) as ModalSize);
     } catch {}
-    return { width: 900, height: 650 };
+    return clampModalSize(DEFAULT_MODAL_SIZE);
   });
+
+  const updateModalPosition = useCallback((nextPosition: ModalPosition) => {
+    if (isFullscreen) return;
+
+    const viewport = getViewportBounds();
+    const clampedPosition = clampModalPosition(nextPosition, modalSize, viewport);
+    setModalPosition(prev => (
+      prev.top === clampedPosition.top && prev.left === clampedPosition.left ? prev : clampedPosition
+    ));
+  }, [isFullscreen, modalSize]);
+
+  const updateModalSize = useCallback((nextSize: ModalSize) => {
+    if (isFullscreen) return;
+
+    const viewport = getViewportBounds();
+    const clampedSize = clampModalSize(nextSize, viewport);
+    const clampedPosition = clampModalPosition(modalPosition, clampedSize, viewport);
+
+    setModalSize(prev => (
+      prev.width === clampedSize.width && prev.height === clampedSize.height ? prev : clampedSize
+    ));
+    setModalPosition(prev => (
+      prev.top === clampedPosition.top && prev.left === clampedPosition.left ? prev : clampedPosition
+    ));
+  }, [isFullscreen, modalPosition]);
+
+  const syncModalToViewport = useCallback(() => {
+    if (isFullscreen) return;
+
+    const viewport = getViewportBounds();
+    const clampedSize = clampModalSize(modalSize, viewport);
+    const clampedPosition = clampModalPosition(modalPosition, clampedSize, viewport);
+
+    setModalSize(prev => (
+      prev.width === clampedSize.width && prev.height === clampedSize.height ? prev : clampedSize
+    ));
+    setModalPosition(prev => (
+      prev.top === clampedPosition.top && prev.left === clampedPosition.left ? prev : clampedPosition
+    ));
+  }, [isFullscreen, modalPosition, modalSize]);
 
   // Persist states to localStorage
   useEffect(() => {
@@ -189,6 +304,17 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
   useEffect(() => {
     localStorage.setItem('crono-reader-modal-size', JSON.stringify(modalSize));
   }, [modalSize]);
+
+  useEffect(() => {
+    syncModalToViewport();
+
+    window.addEventListener('resize', syncModalToViewport);
+    return () => window.removeEventListener('resize', syncModalToViewport);
+  }, [syncModalToViewport]);
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_SPLIT_STORAGE_KEY, JSON.stringify(sidebarSplitSizes));
+  }, [sidebarSplitSizes]);
 
   // Center modal window upon open (only if no custom position/size settings are saved)
   useEffect(() => {
@@ -331,7 +457,16 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
 
         {/* RSS 阅读视图 */}
         <div className={styles.viewContent} style={{ display: activeView === 'rss' ? 'flex' : 'none' }}>
-          <Split className="split" sizes={[22, 78]} minSize={220} gutterSize={8} snapOffset={0}>
+          <Split
+            className="split"
+            sizes={sidebarSplitSizes}
+            minSize={220}
+            gutterSize={8}
+            snapOffset={0}
+            onDragEnd={(sizes) => {
+              setSidebarSplitSizes([sizes[0], sizes[1]]);
+            }}
+          >
             <div className={`${styles.splitPane} ${styles.sidebarPane}`}>
               <Sidebar
                 feeds={feeds}
@@ -477,9 +612,9 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
               isFullscreen={isFullscreen}
               setIsFullscreen={setIsFullscreen}
               modalPosition={modalPosition}
-              setModalPosition={setModalPosition}
+              setModalPosition={updateModalPosition}
               modalSize={modalSize}
-              setModalSize={setModalSize}
+              setModalSize={updateModalSize}
             />
           </div>
         </div>
