@@ -3,6 +3,7 @@ import { makeStyles, Spinner } from '@fluentui/react-components';
 import ReactMarkdown from 'react-markdown';
 import { streamEntityExplain, type Entity } from '../api/entityApi';
 import type { ArticleResponse } from '../model/article';
+import { ThinkingBlock } from '../../components/ThinkingBlock';
 
 interface EntityExplainPopoverProps {
   entity: Entity;
@@ -68,6 +69,7 @@ export const EntityExplainPopover: React.FC<EntityExplainPopoverProps> = ({
 }) => {
   const styles = useStyles();
   const [text, setText] = useState('');
+  const [thinking, setThinking] = useState('');
   const [loading, setLoading] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -82,6 +84,10 @@ export const EntityExplainPopover: React.FC<EntityExplainPopoverProps> = ({
       articleTitle: article.title,
       articleContext,
       historyTitles,
+      onReasoning: (chunk) => {
+        setLoading(false);
+        setThinking(prev => prev + chunk);
+      },
       onChunk: (chunk) => {
         setLoading(false);
         setText(prev => prev + chunk);
@@ -119,6 +125,7 @@ export const EntityExplainPopover: React.FC<EntityExplainPopoverProps> = ({
         <Spinner size="tiny" label="正在生成解释..." />
       ) : (
         <div className={styles.content}>
+          {thinking && <ThinkingBlock content={thinking} label="模型思考" />}
           <ReactMarkdown>{text}</ReactMarkdown>
         </div>
       )}

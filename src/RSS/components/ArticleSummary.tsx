@@ -17,6 +17,8 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import type { ArticleResponse } from '../model/article';
 import { apiFetch } from '../../api/client';
+import { consumeBase64JsonSse } from '../../api/stream';
+import { ThinkingBlock } from '../../components/ThinkingBlock';
 
 interface ArticleSummaryProps {
     article: ArticleResponse | null;
@@ -109,6 +111,7 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
     const styles = useStyles();
 
     const [summary, setSummary] = useState<string>('');
+    const [thinking, setThinking] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isCheckingCache, setIsCheckingCache] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -120,6 +123,7 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
         setIsLoading(true);
         setError(null);
         setSummary('');
+        setThinking('');
 
         try {
             const response = await apiFetch('/llm/ai_summary/stream', {
@@ -132,21 +136,23 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
                 throw new Error(errorData.detail || `API Request Failed with status: ${response.status}`);
             }
 
-            const reader = response.body?.getReader();
-            if (!reader) {
+            if (!response.body) {
                 throw new Error('无法读取响应流');
             }
 
-            const decoder = new TextDecoder('utf-8');
             let accumulatedContent = '';
+            let accumulatedThinking = '';
 
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
+            await consumeBase64JsonSse(response, event => {
+                if (event.type === 'reasoning') {
+                    accumulatedThinking += event.text;
+                    setThinking(accumulatedThinking);
+                    return;
+                }
 
-                accumulatedContent += decoder.decode(value, { stream: true });
+                accumulatedContent += event.text;
                 setSummary(accumulatedContent);
-            }
+            });
         } catch (err) {
             console.error('Failed to fetch summary:', err);
             setError((err as Error).message || '发生未知错误，无法生成摘要。');
@@ -161,6 +167,7 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
         const checkSummaryCache = async () => {
             setError(null);
             setIsLoading(false);
+            setThinking('');
 
             if (article?.ai_summary) {
                 setSummary(article.ai_summary);
@@ -240,6 +247,7 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
                     </MessageBarBody>
                 </MessageBar>
             )}
+            {thinking && <ThinkingBlock content={thinking} label="AI 思考" />}
             {summary && (
                 <div className={styles.markdownContainer}>
                     <ReactMarkdown

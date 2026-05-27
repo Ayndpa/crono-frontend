@@ -18,6 +18,8 @@ import {
 } from '@fluentui/react-icons';
 import { useSpeech } from './useSpeech';
 import { apiFetch } from '../../api/client';
+import { consumeBase64JsonSse } from '../../api/stream';
+import { ThinkingBlock } from '../../components/ThinkingBlock';
 import type { ArticleResponse } from '../model/article';
 
 interface ArticleTTSProps {
@@ -83,6 +85,7 @@ export const ArticleTTS: React.FC<ArticleTTSProps> = ({ article, url }) => {
   const { status, voices, options, setOptions, speak, preview, pause, resume, stop } = useSpeech();
 
   const [script, setScript] = useState('');
+  const [thinking, setThinking] = useState('');
   const [style, setStyle] = useState('');
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -109,6 +112,7 @@ export const ArticleTTS: React.FC<ArticleTTSProps> = ({ article, url }) => {
     setGenerating(true);
     setGenError(null);
     setScript('');
+    setThinking('');
     stop();
 
     try {
@@ -123,16 +127,20 @@ export const ArticleTTS: React.FC<ArticleTTSProps> = ({ article, url }) => {
       });
       if (!res.ok) throw new Error(`请求失败 (${res.status})`);
 
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error('无法读取响应流');
-      const decoder = new TextDecoder('utf-8');
+      if (!res.body) throw new Error('无法读取响应流');
+
       let accumulated = '';
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
+      let accumulatedThinking = '';
+      await consumeBase64JsonSse(res, event => {
+        if (event.type === 'reasoning') {
+          accumulatedThinking += event.text;
+          setThinking(accumulatedThinking);
+          return;
+        }
+
+        accumulated += event.text;
         setScript(accumulated);
-      }
+      });
     } catch (e: any) {
       if (e.name !== 'AbortError') setGenError(e.message || '生成失败');
     } finally {
@@ -187,6 +195,8 @@ export const ArticleTTS: React.FC<ArticleTTSProps> = ({ article, url }) => {
           {script || <Spinner size="tiny" label="正在生成..." />}
         </div>
       )}
+
+      {thinking && <ThinkingBlock content={thinking} label="AI 思考" />}
 
       {/* 语音选择 */}
       <div className={styles.sliderRow}>

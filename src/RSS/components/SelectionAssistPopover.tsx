@@ -23,6 +23,8 @@ import {
 } from '@fluentui/react-icons';
 import ReactMarkdown from 'react-markdown';
 import { apiFetch } from '../../api/client';
+import { consumeBase64JsonSse } from '../../api/stream';
+import { ThinkingBlock } from '../../components/ThinkingBlock';
 import { useSpeech } from './useSpeech';
 
 type SelectionAction = 'explain' | 'summary' | 'translate';
@@ -133,7 +135,7 @@ async function streamSelectionAssist(params: {
   text: string;
   context: string;
   articleTitle: string;
-  onChunk: (chunk: string) => void;
+  onEvent: (event: { type: 'reasoning' | 'content'; text: string }) => void;
 }) {
   const response = await apiFetch('/llm/selection/stream', {
     method: 'POST',
@@ -149,13 +151,7 @@ async function streamSelectionAssist(params: {
     throw new Error(`请求失败：${response.status}`);
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    params.onChunk(decoder.decode(value, { stream: true }));
-  }
+  await consumeBase64JsonSse(response, params.onEvent);
 }
 
 export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
@@ -172,6 +168,7 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
   const [activeAction, setActiveAction] = useState<SelectionAction | null>(null);
   const [results, setResults] = useState<Partial<Record<SelectionAction, string>>>({});
   const [result, setResult] = useState('');
+  const [thinking, setThinking] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -203,7 +200,7 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
 
   const [position, setPosition] = useState({ top: initialBounds.top, left: initialBounds.left });
   const [size, setSize] = useState({ width: initialBounds.width, height: initialBounds.height });
-  const hasResultArea = loading || result || error;
+  const hasResultArea = loading || result || error || thinking;
 
   useEffect(() => {
     setPosition({ top: initialBounds.top, left: initialBounds.left });
@@ -223,6 +220,7 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
   const runAction = async (action: SelectionAction) => {
     setActiveAction(action);
     setResult('');
+    setThinking('');
     setError(null);
     setLoading(true);
     setSize(prev => ({ ...prev, height: Math.max(prev.height, 300) }));
@@ -232,9 +230,14 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
         text,
         context,
         articleTitle,
-        onChunk: chunk => {
-          setResult(prev => prev + chunk);
-          setResults(prev => ({ ...prev, [action]: `${prev[action] ?? ''}${chunk}` }));
+        onEvent: event => {
+          if (event.type === 'reasoning') {
+            setThinking(prev => prev + event.text);
+            return;
+          }
+
+          setResult(prev => prev + event.text);
+          setResults(prev => ({ ...prev, [action]: `${prev[action] ?? ''}${event.text}` }));
         },
       });
     } catch (err) {
@@ -392,6 +395,7 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
 
       {hasResultArea ? (
         <div className={styles.result}>
+          {thinking && <ThinkingBlock content={thinking} label="模型思考" />}
           {loading && !result ? (
             <Spinner size="tiny" label="正在处理..." />
           ) : error ? (

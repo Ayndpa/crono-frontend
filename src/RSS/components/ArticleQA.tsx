@@ -13,6 +13,8 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import type { ArticleResponse } from '../model/article';
 import { apiFetch } from '../../api/client';
+import { consumeBase64JsonSse } from '../../api/stream';
+import { ThinkingBlock } from '../../components/ThinkingBlock';
 
 interface ArticleQAProps {
     article: ArticleResponse | null;
@@ -22,6 +24,7 @@ interface ArticleQAProps {
 interface QAMessage {
     role: 'user' | 'assistant';
     content: string;
+    thinking?: string;
 }
 
 const useStyles = makeStyles({
@@ -132,24 +135,25 @@ export const ArticleQA: React.FC<ArticleQAProps> = ({ article, url }) => {
                 throw new Error(err.detail || 'API 请求失败');
             }
 
-            const reader = response.body?.getReader();
-            if (!reader) throw new Error('无法读取响应流');
+            if (!response.body) throw new Error('无法读取响应流');
 
-            const decoder = new TextDecoder('utf-8');
             let content = '';
+            let thinking = '';
+            setMessages(prev => [...prev, { role: 'assistant', content: '', thinking: '' }]);
 
-            setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+            await consumeBase64JsonSse(response, event => {
+                if (event.type === 'reasoning') {
+                    thinking += event.text;
+                } else {
+                    content += event.text;
+                }
 
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                content += decoder.decode(value, { stream: true });
                 setMessages(prev => {
                     const next = [...prev];
-                    next[next.length - 1] = { role: 'assistant', content };
+                    next[next.length - 1] = { role: 'assistant', content, thinking };
                     return next;
                 });
-            }
+            });
         } catch (err) {
             setMessages(prev => [
                 ...prev,
@@ -193,9 +197,14 @@ export const ArticleQA: React.FC<ArticleQAProps> = ({ article, url }) => {
                             {msg.role === 'user' ? (
                                 <Text>{msg.content}</Text>
                             ) : (
-                                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                                    {msg.content}
-                                </ReactMarkdown>
+                                <>
+                                    {msg.thinking && <ThinkingBlock content={msg.thinking} label="模型思考" />}
+                                    {msg.content && (
+                                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                                            {msg.content}
+                                        </ReactMarkdown>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>

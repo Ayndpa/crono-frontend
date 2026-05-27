@@ -15,6 +15,8 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import type { ArticleResponse } from '../model/article';
 import { apiFetch } from '../../api/client';
+import { consumeBase64JsonSse } from '../../api/stream';
+import { ThinkingBlock } from '../../components/ThinkingBlock';
 
 interface ArticleTranslationProps {
   article: ArticleResponse | null;
@@ -94,6 +96,7 @@ const useStyles = makeStyles({
 export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article, url }) => {
   const styles = useStyles();
   const [translation, setTranslation] = useState<string>('');
+  const [thinking, setThinking] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isCheckingCache, setIsCheckingCache] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +108,7 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
     setIsLoading(true);
     setError(null);
     setTranslation('');
+    setThinking('');
 
     try {
       const response = await apiFetch('/llm/translation/stream', {
@@ -117,18 +121,21 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
         throw new Error(errorData.detail || `请求失败：${response.status}`);
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('无法读取响应流');
+      if (!response.body) throw new Error('无法读取响应流');
 
-      const decoder = new TextDecoder('utf-8');
       let accumulated = '';
+      let accumulatedThinking = '';
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
+      await consumeBase64JsonSse(response, event => {
+        if (event.type === 'reasoning') {
+          accumulatedThinking += event.text;
+          setThinking(accumulatedThinking);
+          return;
+        }
+
+        accumulated += event.text;
         setTranslation(accumulated);
-      }
+      });
     } catch (err) {
       setError((err as Error).message || '翻译失败，请稍后重试。');
     } finally {
@@ -142,6 +149,7 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
     const checkTranslationCache = async () => {
       setError(null);
       setIsLoading(false);
+      setThinking('');
 
       if (article?.ai_translation) {
         setTranslation(article.ai_translation);
@@ -219,6 +227,7 @@ export const ArticleTranslation: React.FC<ArticleTranslationProps> = ({ article,
           </MessageBarBody>
         </MessageBar>
       )}
+      {thinking && <ThinkingBlock content={thinking} label="AI 思考" />}
       {translation && (
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkBreaks]}

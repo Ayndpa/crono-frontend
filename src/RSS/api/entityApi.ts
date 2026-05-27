@@ -1,4 +1,5 @@
 import { apiFetch } from '../../api/client';
+import { consumeBase64JsonSse } from '../../api/stream';
 
 export interface Entity {
   text: string;
@@ -22,6 +23,7 @@ export async function streamEntityExplain(params: {
   articleContext: string;
   historyTitles: string[];
   onChunk: (text: string) => void;
+  onReasoning?: (text: string) => void;
   onDone: () => void;
   onError: (e: Error) => void;
 }): Promise<void> {
@@ -41,27 +43,15 @@ export async function streamEntityExplain(params: {
     return;
   }
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const encoded = line.slice(6).trim();
-          if (encoded) {
-            const decoded = atob(encoded);
-            params.onChunk(decoded);
-          }
-        }
+    await consumeBase64JsonSse(res, event => {
+      if (event.type === 'reasoning') {
+        params.onReasoning?.(event.text);
+        return;
       }
-    }
+
+      params.onChunk(event.text);
+    });
     params.onDone();
   } catch (e) {
     params.onError(e as Error);

@@ -36,6 +36,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { apiFetch } from '../api/client';
+import { consumeBase64JsonSse } from '../api/stream';
+import { ThinkingBlock } from '../components/ThinkingBlock';
 import { getConfigs, type LLMConfig } from '../Management/components/MainContent/LLM/api/llmConfig';
 
 // 在这里定义 Message 类型，确保类型安全
@@ -43,6 +45,7 @@ interface Message {
     id: string;
     role: 'user' | 'assistant' | 'system';
     content: string;
+    thinking?: string;
     timestamp: string;
 }
 
@@ -209,19 +212,14 @@ const ChatApp = () => {
                 throw new Error(errorData.detail || 'API 请求失败');
             }
 
-            const reader = response.body?.getReader();
-            if (!reader) {
-                throw new Error('无法读取响应流');
-            }
-
-            const decoder = new TextDecoder('utf-8');
             let aiResponseContent = '';
-            let buffer = '';
+            let aiReasoningContent = '';
             const aiMessageId = (Date.now() + 1).toString();
             const aiMessagePlaceholder = {
                 id: aiMessageId,
                 role: 'assistant' as 'assistant',
                 content: '',
+                thinking: '',
                 timestamp: new Date().toISOString()
             };
 
@@ -231,54 +229,27 @@ const ChatApp = () => {
                 updatedAt: new Date().toISOString()
             }));
 
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) {
-                    if (buffer.length > 0) {
-                        // 正确地处理 Base64 解码和 UTF-8 解码
-                        const binaryString = atob(buffer);
-                        const bytes = new Uint8Array(binaryString.length);
-                        for (let i = 0; i < binaryString.length; i++) {
-                            bytes[i] = binaryString.charCodeAt(i);
-                        }
-                        aiResponseContent += new TextDecoder('utf-8').decode(bytes);
-                    }
-                    break;
+            if (!response.body) {
+                throw new Error('无法读取响应流');
+            }
+
+            await consumeBase64JsonSse(response, event => {
+                if (event.type === 'reasoning') {
+                    aiReasoningContent += event.text;
+                } else {
+                    aiResponseContent += event.text;
                 }
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-
-                lines.forEach(line => {
-                    if (line.startsWith('data:')) {
-                        const encodedContent = line.substring(line.indexOf(':') + 1).trim();
-                        if (encodedContent && encodedContent !== '[DONE]') {
-                            try {
-                                // 关键改动: Base64 解码 + UTF-8 解码
-                                const binaryString = atob(encodedContent);
-                                const bytes = new Uint8Array(binaryString.length);
-                                for (let i = 0; i < binaryString.length; i++) {
-                                    bytes[i] = binaryString.charCodeAt(i);
-                                }
-                                aiResponseContent += new TextDecoder('utf-8').decode(bytes);
-                            } catch (e) {
-                                console.error('Base64 解码失败:', e, '原始数据:', encodedContent);
-                            }
-                        }
-                    }
-                });
 
                 updateConversation(activeConversationId, conversation => ({
                     ...conversation,
                     messages: conversation.messages.map(msg =>
                         msg.id === aiMessageId
-                            ? { ...msg, content: aiResponseContent }
+                            ? { ...msg, content: aiResponseContent, thinking: aiReasoningContent }
                             : msg
                     ),
                     updatedAt: new Date().toISOString()
                 }));
-            }
+            });
         } catch (error) {
             console.error("AI消息发送失败:", error);
             const errorMessage = (error instanceof Error) ? error.message : "未知错误";
@@ -363,7 +334,7 @@ const ChatApp = () => {
 
     // 渲染消息
     const renderMessage = (message: Message) => {
-        if (message.role === 'assistant' && !message.content.trim()) {
+        if (message.role === 'assistant' && !message.content.trim() && !message.thinking?.trim()) {
             return null;
         }
 
@@ -436,10 +407,20 @@ const ChatApp = () => {
                                 overflowWrap: 'anywhere'
                             }}
                         >
-                            <ReactMarkdown
-                                children={message.content}
-                                remarkPlugins={[remarkGfm, remarkBreaks]}
-                            />
+                            {!isUser && message.thinking?.trim() && (
+                                <ThinkingBlock content={message.thinking} label="模型思考" />
+                            )}
+                            {message.content.trim() && (
+                                <ReactMarkdown
+                                    children={message.content}
+                                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                                />
+                            )}
+                            {!isUser && !message.content.trim() && message.thinking?.trim() && (
+                                <div style={{ marginTop: '8px', color: tokens.colorNeutralForeground3 }}>
+                                    <Spinner size="tiny" label="正在生成回答..." />
+                                </div>
+                            )}
                         </div>
 
                         <Divider />
