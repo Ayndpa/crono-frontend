@@ -1,359 +1,201 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   makeStyles,
+  shorthands,
   Button,
   Input,
-  Spinner,
-  Text,
   tokens,
 } from '@fluentui/react-components';
-import {
-  Add24Regular,
-  Dismiss16Regular,
-  ArrowRight20Regular,
-  Globe24Regular,
-  Sparkle24Regular,
-  Warning24Regular,
-} from '@fluentui/react-icons';
-import { apiFetch } from '../../../api/client';
-import DOMPurify from 'dompurify';
-import { AiAssistPanel } from '../AiAssistPanel';
+import { Globe24Regular, ArrowRight24Regular, BookOpen24Regular } from '@fluentui/react-icons';
 
-// ─── 类型 ────────────────────────────────────────────────────────────────────
-
-interface BrowserTab {
-  id: string;
-  url: string;           // 当前已加载的 URL
-  inputUrl: string;      // 地址栏输入值
-  title: string;         // 文章标题
-  html: string | null;
-  loading: boolean;
-  error: string | null;  // 'captcha' | 其他错误信息 | null
+interface BrowserTabsProps {
+  onOpenUrl: (url: string) => void;
 }
-
-// ─── 样式 ────────────────────────────────────────────────────────────────────
 
 const useStyles = makeStyles({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
-    overflow: 'hidden',
-  },
-  tabBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '2px',
-    padding: '4px 8px 0',
-    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
-    backgroundColor: tokens.colorNeutralBackground2,
-    overflowX: 'auto',
-    flexShrink: 0,
-  },
-  tab: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '6px 12px',
-    borderRadius: '8px 8px 0 0',
-    cursor: 'pointer',
-    maxWidth: '180px',
-    minWidth: '100px',
-    backgroundColor: tokens.colorNeutralBackground3,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderBottom: '0',
-    userSelect: 'none',
-    flexShrink: 0,
-    color: tokens.colorNeutralForeground3,
-  },
-  tabActive: {
-    backgroundColor: tokens.colorNeutralBackground1,
-    border: `1px solid ${tokens.colorNeutralStroke1}`,
-    borderBottom: '0',
-    color: tokens.colorNeutralForeground1,
-  },
-  tabLabel: {
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    flexGrow: 1,
-    fontSize: '12px',
-  },
-  tabLabelActive: {
-    fontWeight: 600,
-  },
-  tabClose: {
-    flexShrink: 0,
-    minWidth: 'unset',
-    height: '16px',
-    width: '16px',
-    padding: '0',
-  },
-  addTabBtn: {
-    flexShrink: 0,
-    marginLeft: '4px',
-  },
-  addressBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 12px',
-    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
-    backgroundColor: tokens.colorNeutralBackground1,
-    flexShrink: 0,
-  },
-  addressInput: {
-    flexGrow: 1,
-  },
-  content: {
-    flexGrow: 1,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: tokens.colorNeutralBackground1,
-  },
-  scrollContent: {
-    height: '100%',
-    overflowY: 'auto',
-    padding: '16px 24px',
-  },
-  centerBox: {
-    display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    gap: '12px',
-    color: tokens.colorNeutralForeground3,
+    backgroundColor: tokens.colorNeutralBackground2,
+    ...shorthands.padding('24px'),
   },
-  articleHtml: {
-    lineHeight: '1.75',
+  card: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: '620px',
+    backgroundColor: tokens.colorNeutralBackground1,
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+    ...shorthands.borderRadius('16px'),
+    ...shorthands.padding('40px', '48px'),
+    ...shorthands.border('1px', 'solid', tokens.colorNeutralStroke2),
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)',
+    },
+  },
+  iconWrapper: {
+    width: '64px',
+    height: '64px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'var(--colorBrandBackground2)',
+    color: 'var(--colorBrandForeground2)',
+    marginBottom: '24px',
+    ...shorthands.borderRadius('50%'),
+  },
+  title: {
+    fontSize: '28px',
+    fontWeight: '700',
+    marginBottom: '8px',
+    textAlign: 'center',
+    background: 'linear-gradient(135deg, var(--colorBrandForeground1) 0%, #a29bfe 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  },
+  description: {
+    color: tokens.colorNeutralForeground3,
+    textAlign: 'center',
+    fontSize: '14px',
+    lineHeight: '1.6',
+    marginBottom: '32px',
+    maxWidth: '480px',
+  },
+  inputWrapper: {
+    display: 'flex',
+    width: '100%',
+    gap: '8px',
+    marginBottom: '24px',
+  },
+  input: {
+    flexGrow: 1,
+    height: '44px',
     fontSize: '15px',
-    overflowWrap: 'break-word',
-    '& img': { maxWidth: '100%', height: 'auto' },
-    '& a': { color: tokens.colorBrandForeground1 },
-    '& pre': { overflowX: 'auto' },
+  },
+  button: {
+    height: '44px',
+    padding: '0 ' + '24px',
+    fontSize: '15px',
+    fontWeight: '600',
+  },
+  examplesContainer: {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: '10px',
+    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+    paddingTop: '20px',
+  },
+  examplesTitle: {
+    color: tokens.colorNeutralForeground4,
+    fontSize: '12px',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+  exampleList: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+  },
+  exampleTag: {
+    fontSize: '12px',
+    cursor: 'pointer',
+    backgroundColor: tokens.colorNeutralBackground3,
+    color: tokens.colorNeutralForeground2,
+    transition: 'background-color 0.2s ease, color 0.2s ease',
+    ...shorthands.padding('6px', '12px'),
+    ...shorthands.borderRadius('20px'),
+    ...shorthands.border('1px', 'solid', tokens.colorNeutralStroke3),
+    '&:hover': {
+      backgroundColor: tokens.colorBrandBackground2,
+      color: tokens.colorBrandForeground2,
+      ...shorthands.borderColor(tokens.colorBrandStroke2),
+    },
   },
 });
 
-// ─── 工具函数 ─────────────────────────────────────────────────────────────────
-
-function newTab(url = '', html: string | null = null): BrowserTab {
-  return {
-    id: crypto.randomUUID(),
-    url,
-    inputUrl: url,
-    title: '',
-    html,
-    loading: false,
-    error: null,
-  };
-}
-
-function normalizeUrl(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-}
-
-// ─── 主组件 ───────────────────────────────────────────────────────────────────
-
-export const BrowserTabs: React.FC = () => {
+export const BrowserTabs: React.FC<BrowserTabsProps> = ({ onOpenUrl }) => {
   const styles = useStyles();
+  const [urlInput, setUrlInput] = useState('');
 
-  const [tabs, setTabs] = useState<BrowserTab[]>([newTab()]);
-  const [activeId, setActiveId] = useState<string>(() => tabs[0].id);
-  const [showAiPanel, setShowAiPanel] = useState(false);
-
-  const activeTab = tabs.find(t => t.id === activeId) ?? tabs[0];
-
-  // 更新单个 tab 的部分字段
-  const updateTab = useCallback((id: string, patch: Partial<BrowserTab>) => {
-    setTabs(prev => prev.map(t => (t.id === id ? { ...t, ...patch } : t)));
-  }, []);
-
-  // 切换标签页
-  const switchTab = (id: string) => {
-    setActiveId(id);
-    setShowAiPanel(false);
-  };
-
-  // 新建标签页
-  const addTab = () => {
-    const tab = newTab();
-    setTabs(prev => [...prev, tab]);
-    setActiveId(tab.id);
-    setShowAiPanel(false);
-  };
-
-  // 关闭标签页
-  const closeTab = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setTabs(prev => {
-      const next = prev.filter(t => t.id !== id);
-      if (next.length === 0) {
-        const fresh = newTab();
-        setActiveId(fresh.id);
-        return [fresh];
-      }
-      if (id === activeId) {
-        setActiveId(next[next.length - 1].id);
-        setShowAiPanel(false);
-      }
-      return next;
-    });
-  };
-
-  // 导航到 URL
-  const navigate = async (tabId: string, rawUrl: string) => {
-    const url = normalizeUrl(rawUrl);
-    if (!url) return;
-
-    updateTab(tabId, { url, inputUrl: url, loading: true, error: null, html: null });
-
-    try {
-      const res = await apiFetch('/rss/article/content', {
-        method: 'POST',
-        body: JSON.stringify({ url }),
-      });
-      const data: { html: string; title: string; captcha: boolean; from_cache: boolean } = await res.json();
-
-      if (data.captcha || !data.html) {
-        updateTab(tabId, { loading: false, error: 'captcha' });
-      } else {
-        updateTab(tabId, {
-          loading: false,
-          html: DOMPurify.sanitize(data.html),
-          title: data.title || url,
-        });
-      }
-    } catch {
-      updateTab(tabId, { loading: false, error: '加载失败，请检查网络或 URL 是否正确。' });
-    }
+  const handleSubmit = () => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+    onOpenUrl(trimmed);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') navigate(activeTab.id, activeTab.inputUrl);
+    if (e.key === 'Enter') {
+      handleSubmit();
+    }
+  };
+
+  const handleExampleClick = (url: string) => {
+    setUrlInput(url);
+    onOpenUrl(url);
   };
 
   return (
     <div className={styles.root}>
-      {/* 标签栏 */}
-      <div className={styles.tabBar}>
-        {tabs.map(tab => (
-          <div
-            key={tab.id}
-            className={`${styles.tab} ${tab.id === activeId ? styles.tabActive : ''}`}
-            onClick={() => switchTab(tab.id)}
-            onMouseDown={e => {
-              if (e.button === 1) {
-                e.preventDefault();
-                closeTab(tab.id, e as unknown as React.MouseEvent);
-              }
-            }}
-            style={tab.id === activeId ? { boxShadow: `inset 0 -2px 0 ${tokens.colorBrandStroke1}` } : undefined}
-          >
-            <Globe24Regular style={{ fontSize: '14px', flexShrink: 0 }} />
-            <span className={`${styles.tabLabel} ${tab.id === activeId ? styles.tabLabelActive : ''}`}>
-              {tab.title || (tab.url ? new URL(tab.url).hostname : '新标签页')}
-            </span>
-            <Button
-              className={styles.tabClose}
-              appearance="subtle"
-              icon={<Dismiss16Regular />}
-              onClick={e => closeTab(tab.id, e)}
-            />
-          </div>
-        ))}
-        <Button
-          className={styles.addTabBtn}
-          appearance="subtle"
-          icon={<Add24Regular />}
-          onClick={addTab}
-        />
-      </div>
+      <div className={styles.card}>
+        <div className={styles.iconWrapper}>
+          <BookOpen24Regular style={{ fontSize: '32px' }} />
+        </div>
+        <h1 className={styles.title}>网页即时阅读</h1>
+        <p className={styles.description}>
+          输入任何网页文章链接，系统将自动解析、净化内容（过滤广告与杂噪），并在可定制的阅读器中打开，带给您极简沉浸的阅读享受。
+        </p>
 
-      {/* 地址栏 */}
-      <div className={styles.addressBar}>
-        <Input
-          className={styles.addressInput}
-          value={activeTab.inputUrl}
-          placeholder="输入网址，按 Enter 访问..."
-          onChange={(_, d) => updateTab(activeTab.id, { inputUrl: d.value })}
-          onKeyDown={handleKeyDown}
-          contentBefore={<Globe24Regular />}
-        />
-        <Button
-          appearance="primary"
-          icon={<ArrowRight20Regular />}
-          onClick={() => navigate(activeTab.id, activeTab.inputUrl)}
-          disabled={activeTab.loading}
-        >
-          前往
-        </Button>
-        {activeTab.html && (
-          <Button
-            appearance="subtle"
-            icon={<Sparkle24Regular />}
-            onClick={() => setShowAiPanel(v => !v)}
-          >
-            AI 助手
-          </Button>
-        )}
-      </div>
-
-      {/* 内容区 */}
-      <div className={styles.content}>
-        {showAiPanel && activeTab.html && (
-          <AiAssistPanel
-            article={null}
-            url={activeTab.url}
-            onClose={() => setShowAiPanel(false)}
+        <div className={styles.inputWrapper}>
+          <Input
+            className={styles.input}
+            placeholder="输入网页 URL 链接 (例如: www.ruanyifeng.com/blog/2024/01/weekly-issue-286.html)..."
+            value={urlInput}
+            onChange={(_, d) => setUrlInput(d.value)}
+            onKeyDown={handleKeyDown}
+            contentBefore={<Globe24Regular />}
           />
-        )}
+          <Button
+            className={styles.button}
+            appearance="primary"
+            icon={<ArrowRight24Regular />}
+            onClick={handleSubmit}
+            disabled={!urlInput.trim()}
+          >
+            开始阅读
+          </Button>
+        </div>
 
-        <div className={styles.scrollContent}>
-          {activeTab.loading && (
-            <div className={styles.centerBox}>
-              <Spinner size="large" label="正在抓取页面..." />
-            </div>
-          )}
-
-          {!activeTab.loading && activeTab.error === 'captcha' && (
-            <div className={styles.centerBox}>
-              <Warning24Regular style={{ fontSize: '48px' }} />
-              <Text size={500} weight="semibold">该页面触发了验证码</Text>
-              <Text>此网站启用了反爬虫保护，无法直接抓取内容。</Text>
-              <Button
-                appearance="primary"
-                onClick={() => window.open(activeTab.url, '_blank')}
-              >
-                在浏览器中打开
-              </Button>
-            </div>
-          )}
-
-          {!activeTab.loading && activeTab.error && activeTab.error !== 'captcha' && (
-            <div className={styles.centerBox}>
-              <Warning24Regular style={{ fontSize: '48px' }} />
-              <Text size={500} weight="semibold">加载失败</Text>
-              <Text>{activeTab.error}</Text>
-            </div>
-          )}
-
-          {!activeTab.loading && !activeTab.error && activeTab.html && (
+        <div className={styles.examplesContainer}>
+          <span className={styles.examplesTitle}>推荐试读示例：</span>
+          <div className={styles.exampleList}>
             <div
-              className={styles.articleHtml}
-              dangerouslySetInnerHTML={{ __html: activeTab.html }}
-            />
-          )}
-
-          {!activeTab.loading && !activeTab.error && !activeTab.html && (
-            <div className={styles.centerBox}>
-              <Globe24Regular style={{ fontSize: '48px' }} />
-              <Text size={500}>在地址栏输入网址开始浏览</Text>
+              className={styles.exampleTag}
+              onClick={() => handleExampleClick('https://www.ruanyifeng.com/blog/2024/01/weekly-issue-286.html')}
+            >
+              阮一峰的网络日志
             </div>
-          )}
+            <div
+              className={styles.exampleTag}
+              onClick={() => handleExampleClick('https://sspai.com/post/88636')}
+            >
+              少数派科普文章
+            </div>
+            <div
+              className={styles.exampleTag}
+              onClick={() => handleExampleClick('https://36kr.com/p/2693895521950468')}
+            >
+              36氪新闻资讯
+            </div>
+          </div>
         </div>
       </div>
     </div>
