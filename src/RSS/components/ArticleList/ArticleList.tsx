@@ -66,14 +66,12 @@ interface ArticleListProps {
   articles: ArticleResponse[];
   selectedArticleId: number | null;
   onArticleSelect: (id: number) => void;
-  searchQuery: string;
 }
 
 export const ArticleList: React.FC<ArticleListProps> = ({
   articles,
   selectedArticleId,
   onArticleSelect,
-  searchQuery,
 }) => {
   const styles = useStyles();
   const [sortOrder, setSortOrder] = React.useState('newest');
@@ -81,24 +79,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
   const [viewMode, setViewMode] = React.useState('card');
 
   const filteredArticles = React.useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-
     return [...articles]
-      .filter((article) => {
-        if (!normalizedQuery) return true;
-
-        const searchableText = [
-          article.title,
-          article.ai_summary,
-          article.author,
-          article.tags?.join(' '),
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-
-        return searchableText.includes(normalizedQuery);
-      })
       .filter((article) => !onlyUnread || !article.is_read)
       .sort((a, b) => {
         if (sortOrder === 'newest') {
@@ -107,19 +88,15 @@ export const ArticleList: React.FC<ArticleListProps> = ({
           return new Date(a.pub_date).getTime() - new Date(b.pub_date).getTime();
         }
       });
-  }, [articles, sortOrder, onlyUnread, searchQuery]);
+  }, [articles, sortOrder, onlyUnread]);
 
   if (filteredArticles.length === 0) {
     return (
       <div className={styles.emptyState}>
         <BoxFilled fontSize="64px" className={styles.emptyIcon} />
-        <Display className={styles.emptyTitle}>
-          {searchQuery.trim() ? '没有找到匹配文章' : '没有找到文章'}
-        </Display>
+        <Display className={styles.emptyTitle}>没有找到文章</Display>
         <Text className={styles.emptyDescription}>
-          {searchQuery.trim()
-            ? '请尝试调整关键词，或清空搜索后再查看列表。'
-            : '当前分类下没有文章，请尝试其他分类或添加新的订阅源。'}
+          当前分类下没有文章，请尝试其他分类或添加新的订阅源。
         </Text>
         <AddOrUpdateDialog
           trigger={

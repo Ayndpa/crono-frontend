@@ -14,7 +14,7 @@ import {
   MenuList,
   MenuItem,
 } from '@fluentui/react-components';
-import { WeatherMoon24Regular, SignOut24Regular } from '@fluentui/react-icons';
+import { Search24Regular, WeatherMoon24Regular, SignOut24Regular } from '@fluentui/react-icons';
 import ManagementDialog from '../../Management/ManagementDialog';
 import type { AuthUser } from '../../api/auth';
 
@@ -60,15 +60,13 @@ export const Header = ({
   toggleTheme,
   user,
   onLogout,
-  searchQuery,
-  onSearchQueryChange,
+  onOpenArticleSearch,
 }: {
   isDark: boolean;
   toggleTheme: () => void;
   user: AuthUser;
   onLogout: () => void;
-  searchQuery: string;
-  onSearchQueryChange: (value: string) => void;
+  onOpenArticleSearch: () => void;
 }) => {
   const styles = useStyles();
 
@@ -81,11 +79,14 @@ export const Header = ({
 
         <ToolbarGroup className={styles.searchGroup}>
           <SearchBox
-            placeholder="搜索文章..."
+            placeholder="点击搜索文章，或直接输入链接"
             appearance="underline"
             className={styles.searchBox}
-            value={searchQuery}
-            onChange={(_, data) => onSearchQueryChange(data.value)}
+            value=""
+            readOnly
+            onClick={onOpenArticleSearch}
+            onFocus={onOpenArticleSearch}
+            contentBefore={<Search24Regular />}
           />
         </ToolbarGroup>
 

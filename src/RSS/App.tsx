@@ -1,21 +1,25 @@
 // src/App.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, type KeyboardEvent } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ArticleReader } from './components/ArticleReader';
 import { ArticleList } from './components/ArticleList/ArticleList';
+import { ArticleListItem } from './components/ArticleList/ArticleListItem';
 import { ReaderPage } from './components/Reader/ReaderPage';
 import Split from 'react-split';
 import './App.css';
 import { useRSSData } from './useApp';
 
 import {
+  Button,
+  Input,
+  Text,
   makeStyles,
   shorthands,
   Tab,
   TabList,
 } from '@fluentui/react-components';
-import { Rss24Regular, Globe24Regular, Chat24Regular } from '@fluentui/react-icons';
+import { Dismiss24Regular, Rss24Regular, Globe24Regular, Chat24Regular, Search24Regular } from '@fluentui/react-icons';
 import ChatApp from '../LLM/Chat';
 
 import type { AuthUser } from '../api/auth';
@@ -58,6 +62,50 @@ const useStyles = makeStyles({
   articlePane: {
     flex: '1 1 0',
   },
+  searchBackdrop: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.42)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 1002,
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    padding: '72px 16px 24px',
+    boxSizing: 'border-box',
+  },
+  searchSurface: {
+    width: 'min(920px, 100%)',
+    maxHeight: 'calc(100vh - 96px)',
+    backgroundColor: 'var(--colorNeutralBackground1)',
+    boxShadow: '0 24px 80px rgba(0, 0, 0, 0.32)',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    ...shorthands.borderRadius('16px'),
+  },
+  searchHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    padding: '18px 20px 14px',
+    borderBottom: '1px solid var(--colorNeutralStroke2)',
+  },
+  searchBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    padding: '16px 20px 20px',
+    overflow: 'hidden',
+  },
+  searchResults: {
+    overflowY: 'auto',
+    paddingRight: '4px',
+  },
+  searchHint: {
+    color: 'var(--colorNeutralForeground3)',
+  },
   modalBackdrop: {
     position: 'fixed',
     top: 0,
@@ -96,7 +144,8 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
   const styles = useStyles();
   const [activeView, setActiveView] = useState<'rss' | 'browser' | 'chat'>('rss');
   const [showAiPanel, setShowAiPanel] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [showArticleSearch, setShowArticleSearch] = useState(false);
+  const [articleSearchQuery, setArticleSearchQuery] = useState('');
   const [selectedFeedId, setSelectedFeedId] = useState<string>('all');
 
   // Custom article for URLs opened via helper reader
@@ -159,14 +208,35 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
     }
   }, [isReaderOpen]);
 
+  const normalizeOpenUrl = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(trimmed)) {
+      return trimmed;
+    }
+
+    return `https://${trimmed}`;
+  };
+
+  const isProbablyUrl = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(trimmed)) return true;
+    return /^[\w-]+(\.[\w-]+)+([/?#].*)?$/i.test(trimmed);
+  };
+
   // Handler to open custom URLs in the reader dialog
   const handleOpenUrl = (url: string) => {
+    const normalizedUrl = normalizeOpenUrl(url);
+    if (!normalizedUrl) return;
+
     setCustomArticle({
       id: -Math.floor(Math.random() * 1000000) - 1, // Unique negative ID to trigger fetch
       feed_id: -1,
-      title: url,
-      link: url,
-      guid: url,
+      title: normalizedUrl,
+      link: normalizedUrl,
+      guid: normalizedUrl,
       pub_date: new Date().toISOString(),
       author: '网页抓取',
       is_read: true,
@@ -181,6 +251,54 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
     handleArticleSelect(id);
   };
 
+  const handleOpenArticleSearch = () => {
+    setShowArticleSearch(true);
+  };
+
+  const handleCloseArticleSearch = () => {
+    setShowArticleSearch(false);
+  };
+
+  const handleArticleSearchSubmit = () => {
+    const trimmedQuery = articleSearchQuery.trim();
+    if (!trimmedQuery) return;
+
+    if (isProbablyUrl(trimmedQuery)) {
+      handleCloseArticleSearch();
+      handleOpenUrl(trimmedQuery);
+    }
+  };
+
+  const handleSearchArticleSelect = (id: number) => {
+    handleCloseArticleSearch();
+    handleArticleSelectWithClear(id);
+  };
+
+  const articleSearchResults = useMemo(() => {
+    const normalizedQuery = articleSearchQuery.trim().toLowerCase();
+    const sortedArticles = [...articles].sort(
+      (a, b) => new Date(b.pub_date).getTime() - new Date(a.pub_date).getTime()
+    );
+
+    if (!normalizedQuery) {
+      return sortedArticles.slice(0, 20);
+    }
+
+    return sortedArticles.filter((article) => {
+      const searchableText = [
+        article.title,
+        article.ai_summary,
+        article.author,
+        article.tags?.join(' '),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(normalizedQuery);
+    });
+  }, [articles, articleSearchQuery]);
+
   useEffect(() => {
     setShowAiPanel(false);
   }, [selectedArticle?.id, customArticle?.id]);
@@ -194,8 +312,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
         toggleTheme={toggleTheme}
         user={user}
         onLogout={onLogout}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
+        onOpenArticleSearch={handleOpenArticleSearch}
       />
 
       <div className={styles.mainArea}>
@@ -234,7 +351,6 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
                 articles={articles}
                 selectedArticleId={customArticle ? null : (selectedArticle?.id || null)}
                 onArticleSelect={handleArticleSelectWithClear}
-                searchQuery={searchQuery}
               />
             </div>
           </Split>
@@ -250,6 +366,82 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
           <ChatApp />
         </div>
       </div>
+
+      {showArticleSearch && (
+        <div className={styles.searchBackdrop} onClick={handleCloseArticleSearch}>
+          <div className={styles.searchSurface} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.searchHeader}>
+              <div>
+                <Text size={500} weight="semibold">搜索文章</Text>
+                <div className={styles.searchHint}>
+                  在这里查找文章，点击结果后会直接打开阅读窗口。
+                </div>
+              </div>
+              <Button appearance="subtle" icon={<Dismiss24Regular />} onClick={handleCloseArticleSearch} />
+            </div>
+
+            <div className={styles.searchBody}>
+              <Input
+                placeholder="搜索文章，或直接粘贴链接后回车"
+                value={articleSearchQuery}
+                onChange={(_, data) => setArticleSearchQuery(data.value)}
+                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === 'Enter') {
+                    handleArticleSearchSubmit();
+                  }
+                }}
+                contentBefore={<Search24Regular />}
+                autoFocus
+              />
+
+              {isProbablyUrl(articleSearchQuery) && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    padding: '12px 14px',
+                    border: '1px solid var(--colorNeutralStroke2)',
+                    borderRadius: '12px',
+                    background: 'var(--colorNeutralBackground2)',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <Text weight="semibold">检测到链接</Text>
+                    <div className={styles.searchHint} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      回车后将直接在阅读窗口打开该链接。
+                    </div>
+                  </div>
+                  <Button appearance="primary" onClick={handleArticleSearchSubmit}>
+                    打开链接阅读
+                  </Button>
+                </div>
+              )}
+
+              <div className={styles.searchResults}>
+                {articleSearchResults.length > 0 ? (
+                  articleSearchResults.map((article) => (
+                    <ArticleListItem
+                      key={article.id}
+                      article={article}
+                      isSelected={selectedArticle?.id === Number(article.id)}
+                      onClick={() => article.id !== undefined && handleSearchArticleSelect(Number(article.id))}
+                    />
+                  ))
+                ) : (
+                  <div style={{ padding: '28px 8px', textAlign: 'center' }}>
+                    <Text size={500} weight="semibold">没有找到匹配文章</Text>
+                    <div className={styles.searchHint} style={{ marginTop: '8px' }}>
+                      请尝试更换关键词，或直接关闭后浏览列表。
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating Draggable and Resizable Article Modal */}
       {isReaderOpen && activeArticle && (
