@@ -8,7 +8,7 @@ import {
 } from '@fluentui/react-components';
 import { Globe24Regular, ArrowRight24Regular, BookOpen24Regular } from '@fluentui/react-icons';
 
-interface BrowserTabsProps {
+interface ReaderPageProps {
   onOpenUrl: (url: string) => void;
 }
 
@@ -54,6 +54,9 @@ const useStyles = makeStyles({
     fontSize: '28px',
     fontWeight: '700',
     marginBottom: '8px',
+    lineHeight: '1.25',
+    paddingTop: '4px',
+    paddingBottom: '4px',
     textAlign: 'center',
     background: 'linear-gradient(135deg, var(--colorBrandForeground1) 0%, #a29bfe 100%)',
     WebkitBackgroundClip: 'text',
@@ -122,7 +125,7 @@ const useStyles = makeStyles({
   },
 });
 
-export const BrowserTabs: React.FC<BrowserTabsProps> = ({ onOpenUrl }) => {
+export const ReaderPage: React.FC<ReaderPageProps> = ({ onOpenUrl }) => {
   const styles = useStyles();
   const [urlInput, setUrlInput] = useState('');
 

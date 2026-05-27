@@ -4,7 +4,7 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ArticleReader } from './components/ArticleReader';
 import { ArticleList } from './components/ArticleList/ArticleList';
-import { BrowserTabs } from './components/Browser/BrowserTabs';
+import { ReaderPage } from './components/Reader/ReaderPage';
 import Split from 'react-split';
 import './App.css';
 import { useRSSData } from './useApp';
@@ -242,7 +242,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
 
         {/* 浏览器视图 */}
         <div className={styles.viewContent} style={{ display: activeView === 'browser' ? 'flex' : 'none' }}>
-          <BrowserTabs onOpenUrl={handleOpenUrl} />
+          <ReaderPage onOpenUrl={handleOpenUrl} />
         </div>
 
         {/* 聊天视图 */}
