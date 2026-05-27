@@ -602,6 +602,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
         <div className={styles.modalBackdrop} onClick={() => setIsReaderOpen(false)}>
           <div
             className={styles.modalSurface}
+            data-reader-modal-surface="true"
             style={
               isFullscreen
                 ? {

@@ -60,6 +60,10 @@ const DEFAULT_SETTINGS: ReaderSettings = {
   width: 'medium',
 };
 
+const MODAL_MARGIN = 16;
+const MODAL_MIN_WIDTH = 600;
+const MODAL_MIN_HEIGHT = 400;
+
 const getThemeVariables = (theme: 'light' | 'sepia' | 'gray' | 'dark') => {
   switch (theme) {
     case 'sepia':
@@ -553,22 +557,47 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
     const startY = e.clientY;
     const startTop = modalPosition.top;
     const startLeft = modalPosition.left;
+    const modalSurface = e.currentTarget.closest<HTMLElement>('[data-reader-modal-surface="true"]');
+    let nextTop = startTop;
+    let nextLeft = startLeft;
+    let frame: number | null = null;
+
+    if (modalSurface) {
+      modalSurface.style.willChange = 'top, left';
+    }
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      setModalPosition({
-        top: Math.max(0, startTop + (moveEvent.clientY - startY)),
-        left: Math.max(0, startLeft + (moveEvent.clientX - startX)),
+      const maxTop = Math.max(MODAL_MARGIN, window.innerHeight - MODAL_MARGIN - modalSize.height);
+      const maxLeft = Math.max(MODAL_MARGIN, window.innerWidth - MODAL_MARGIN - modalSize.width);
+      nextTop = Math.min(Math.max(startTop + (moveEvent.clientY - startY), MODAL_MARGIN), maxTop);
+      nextLeft = Math.min(Math.max(startLeft + (moveEvent.clientX - startX), MODAL_MARGIN), maxLeft);
+
+      if (!modalSurface || frame !== null) return;
+
+      frame = window.requestAnimationFrame(() => {
+        modalSurface.style.top = `${nextTop}px`;
+        modalSurface.style.left = `${nextLeft}px`;
+        frame = null;
       });
     };
 
     const handleMouseUp = () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      if (modalSurface) {
+        modalSurface.style.top = `${nextTop}px`;
+        modalSurface.style.left = `${nextLeft}px`;
+        modalSurface.style.willChange = '';
+      }
+      setModalPosition({ top: nextTop, left: nextLeft });
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [isFullscreen, modalPosition, setModalPosition]);
+  }, [isFullscreen, modalPosition, modalSize, setModalPosition]);
 
   // Resize modal handler (triggered by dragging bottom-right grip)
   const handleResizeStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -578,22 +607,47 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
     const startY = e.clientY;
     const startWidth = modalSize.width;
     const startHeight = modalSize.height;
+    const modalSurface = e.currentTarget.closest<HTMLElement>('[data-reader-modal-surface="true"]');
+    let nextWidth = startWidth;
+    let nextHeight = startHeight;
+    let frame: number | null = null;
+
+    if (modalSurface) {
+      modalSurface.style.willChange = 'width, height';
+    }
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      setModalSize({
-        width: Math.max(600, startWidth + (moveEvent.clientX - startX)),
-        height: Math.max(400, startHeight + (moveEvent.clientY - startY)),
+      const maxWidth = Math.max(0, window.innerWidth - MODAL_MARGIN - modalPosition.left);
+      const maxHeight = Math.max(0, window.innerHeight - MODAL_MARGIN - modalPosition.top);
+      nextWidth = Math.min(Math.max(MODAL_MIN_WIDTH, startWidth + (moveEvent.clientX - startX)), maxWidth);
+      nextHeight = Math.min(Math.max(MODAL_MIN_HEIGHT, startHeight + (moveEvent.clientY - startY)), maxHeight);
+
+      if (!modalSurface || frame !== null) return;
+
+      frame = window.requestAnimationFrame(() => {
+        modalSurface.style.width = `${nextWidth}px`;
+        modalSurface.style.height = `${nextHeight}px`;
+        frame = null;
       });
     };
 
     const handleMouseUp = () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      if (modalSurface) {
+        modalSurface.style.width = `${nextWidth}px`;
+        modalSurface.style.height = `${nextHeight}px`;
+        modalSurface.style.willChange = '';
+      }
+      setModalSize({ width: nextWidth, height: nextHeight });
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [modalSize, setModalSize]);
+  }, [modalPosition, modalSize, setModalSize]);
 
   const handleSelection = useCallback(() => {
     window.requestAnimationFrame(() => {

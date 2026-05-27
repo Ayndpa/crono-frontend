@@ -24,6 +24,10 @@ interface AiAssistPanelProps {
   onClose: () => void;
 }
 
+const PANEL_MARGIN = 16;
+const PANEL_MIN_WIDTH = 300;
+const PANEL_MIN_HEIGHT = 200;
+
 const useStyles = makeStyles({
   panel: {
     position: 'fixed',
@@ -91,19 +95,51 @@ export const AiAssistPanel: React.FC<AiAssistPanelProps> = ({ article, url, onCl
   const { configured, loading: configLoading, recheck } = useLLMConfigured();
 
   const handleDragStart = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[role="tab"]')) {
+      return;
+    }
+
+    e.preventDefault();
     const startX = e.clientX;
     const startY = e.clientY;
     const startTop = position.top;
     const startLeft = position.left;
+    let nextTop = startTop;
+    let nextLeft = startLeft;
+    let frame: number | null = null;
+
+    if (dragRef.current) {
+      dragRef.current.style.willChange = 'top, left';
+    }
 
     const handleMove = (moveEvent: MouseEvent) => {
-      setPosition({
-        top: startTop + (moveEvent.clientY - startY),
-        left: startLeft + (moveEvent.clientX - startX),
+      const maxTop = Math.max(PANEL_MARGIN, window.innerHeight - PANEL_MARGIN - size.height);
+      const maxLeft = Math.max(PANEL_MARGIN, window.innerWidth - PANEL_MARGIN - size.width);
+      nextTop = Math.min(Math.max(startTop + (moveEvent.clientY - startY), PANEL_MARGIN), maxTop);
+      nextLeft = Math.min(Math.max(startLeft + (moveEvent.clientX - startX), PANEL_MARGIN), maxLeft);
+
+      if (!dragRef.current || frame !== null) return;
+
+      frame = window.requestAnimationFrame(() => {
+        if (dragRef.current) {
+          dragRef.current.style.top = `${nextTop}px`;
+          dragRef.current.style.left = `${nextLeft}px`;
+        }
+        frame = null;
       });
     };
 
     const handleUp = () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      if (dragRef.current) {
+        dragRef.current.style.top = `${nextTop}px`;
+        dragRef.current.style.left = `${nextLeft}px`;
+        dragRef.current.style.willChange = '';
+      }
+      setPosition({ top: nextTop, left: nextLeft });
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleUp);
     };
@@ -119,15 +155,41 @@ export const AiAssistPanel: React.FC<AiAssistPanelProps> = ({ article, url, onCl
     const startY = e.clientY;
     const startWidth = size.width;
     const startHeight = size.height;
+    let nextWidth = startWidth;
+    let nextHeight = startHeight;
+    let frame: number | null = null;
+
+    if (dragRef.current) {
+      dragRef.current.style.willChange = 'width, height';
+    }
 
     const handleMove = (moveEvent: MouseEvent) => {
-      setSize({
-        width: Math.max(300, startWidth + (moveEvent.clientX - startX)),
-        height: Math.max(200, startHeight + (moveEvent.clientY - startY)),
+      const maxWidth = Math.max(0, window.innerWidth - PANEL_MARGIN - position.left);
+      const maxHeight = Math.max(0, window.innerHeight - PANEL_MARGIN - position.top);
+      nextWidth = Math.min(Math.max(PANEL_MIN_WIDTH, startWidth + (moveEvent.clientX - startX)), maxWidth);
+      nextHeight = Math.min(Math.max(PANEL_MIN_HEIGHT, startHeight + (moveEvent.clientY - startY)), maxHeight);
+
+      if (!dragRef.current || frame !== null) return;
+
+      frame = window.requestAnimationFrame(() => {
+        if (dragRef.current) {
+          dragRef.current.style.width = `${nextWidth}px`;
+          dragRef.current.style.height = `${nextHeight}px`;
+        }
+        frame = null;
       });
     };
 
     const handleUp = () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+      }
+      if (dragRef.current) {
+        dragRef.current.style.width = `${nextWidth}px`;
+        dragRef.current.style.height = `${nextHeight}px`;
+        dragRef.current.style.willChange = '';
+      }
+      setSize({ width: nextWidth, height: nextHeight });
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleUp);
     };
