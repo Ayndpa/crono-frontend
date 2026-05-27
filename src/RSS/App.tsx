@@ -586,19 +586,21 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
             style={
               isFullscreen
                 ? {
-                    top: 0,
-                    left: 0,
-                    width: '100vw',
-                    height: '100vh',
-                    borderRadius: 0,
-                    zIndex: 1001,
-                  }
+                      top: 0,
+                      left: 0,
+                      width: '100vw',
+                      height: '100vh',
+                      maxWidth: 'none',
+                      maxHeight: 'none',
+                      borderRadius: 0,
+                      zIndex: 1001,
+                    }
                 : {
-                    top: `${modalPosition.top}px`,
-                    left: `${modalPosition.left}px`,
-                    width: `${modalSize.width}px`,
-                    height: `${modalSize.height}px`,
-                  }
+                      top: `${modalPosition.top}px`,
+                      left: `${modalPosition.left}px`,
+                      width: `${modalSize.width}px`,
+                      height: `${modalSize.height}px`,
+                    }
             }
             onClick={(e) => e.stopPropagation()}
           >
