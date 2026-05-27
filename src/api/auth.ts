@@ -11,6 +11,30 @@ export interface AuthResult {
   user: AuthUser;
 }
 
+type ValidationIssue = {
+  msg?: unknown;
+  loc?: unknown;
+};
+
+function formatErrorDetail(detail: unknown): string {
+  if (typeof detail === 'string') return detail;
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (!item || typeof item !== 'object') return '';
+
+        const issue = item as ValidationIssue;
+        return typeof issue.msg === 'string' ? issue.msg : '';
+      })
+      .filter(Boolean);
+
+    if (messages.length > 0) return messages.join('；');
+  }
+
+  return '请求失败';
+}
+
 async function post(path: string, body: object): Promise<AuthResult> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
@@ -18,7 +42,7 @@ async function post(path: string, body: object): Promise<AuthResult> {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.detail ?? '请求失败');
+  if (!res.ok) throw new Error(formatErrorDetail(data.detail));
   return data as AuthResult;
 }
 
