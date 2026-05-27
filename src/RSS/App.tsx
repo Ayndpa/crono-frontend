@@ -137,7 +137,6 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
             <ArticleReader
               selectedArticle={selectedArticle}
               onToggleStar={() => { }}
-              allArticles={articles}
             />
           </DialogBody>
         </DialogSurface>

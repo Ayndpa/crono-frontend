@@ -1,7 +1,6 @@
-  import React, { useState, useEffect, useMemo, useCallback } from 'react';
+  import React, { useState, useEffect, useCallback } from 'react';
 import {
   Button,
-  Divider,
   makeStyles,
   Persona,
   shorthands,
@@ -18,7 +17,6 @@ import DOMPurify from 'dompurify';
 interface ArticleReaderProps {
   selectedArticle: ArticleResponse | null;
   onToggleStar: (id: number) => void;
-  allArticles?: ArticleResponse[];
 }
 
 const useStyles = makeStyles({
@@ -34,6 +32,14 @@ const useStyles = makeStyles({
   },
   buttonContainer: {
     ...shorthands.margin('0', '0', '12px', '0'),
+  },
+  separator: {
+    flexShrink: 0,
+    width: '100%',
+    height: '1px',
+    minHeight: '1px',
+    maxHeight: '1px',
+    backgroundColor: 'var(--colorNeutralStroke2)',
   },
   image: {
     maxWidth: '100%',
@@ -96,7 +102,6 @@ const ArticleContent = React.memo(({
 
 export const ArticleReader: React.FC<ArticleReaderProps> = ({
   selectedArticle,
-  allArticles = [],
 }) => {
   const styles = useStyles();
   const [showAiPanel, setShowAiPanel] = useState(false);
@@ -144,14 +149,6 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
       });
     }, 10);
   }, []);
-
-  // 历史已读文章标题（最多 10 条，排除当前文章）
-  const historyTitles = useMemo(() => {
-    return allArticles
-      .filter(a => a.is_read && a.id !== selectedArticle?.id)
-      .slice(0, 10)
-      .map(a => a.title);
-  }, [allArticles, selectedArticle?.id]);
 
   // 切换文章时重置并重新抓取
   useEffect(() => {
@@ -202,7 +199,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
             </Button>
           </div>
 
-          <Divider />
+          <div className={styles.separator} />
 
           {showAiPanel && (
             <AiAssistPanel
