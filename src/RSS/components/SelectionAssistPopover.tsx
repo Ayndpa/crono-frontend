@@ -1,20 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
-  Menu,
-  MenuItem,
-  MenuList,
-  MenuPopover,
-  MenuTrigger,
   makeStyles,
   Spinner,
   Text,
 } from '@fluentui/react-components';
 import {
   BookOpen24Regular,
-  Copy24Regular,
   Dismiss24Regular,
-  MoreHorizontal24Regular,
   Pause24Regular,
   Play24Regular,
   Target24Regular,
@@ -100,6 +93,7 @@ const useStyles = makeStyles({
     padding: '0 12px 12px',
     flex: 1,
     minHeight: 0,
+    userSelect: 'text',
     '& p': {
       marginTop: 0,
       marginBottom: '8px',
@@ -167,12 +161,10 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
   const ref = useRef<HTMLDivElement>(null);
   const { status, speak, pause, resume } = useSpeech();
   const [activeAction, setActiveAction] = useState<SelectionAction | null>(null);
-  const [results, setResults] = useState<Partial<Record<SelectionAction, string>>>({});
   const [result, setResult] = useState('');
   const [thinking, setThinking] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const initialBounds = useMemo(() => {
     const viewportWidth = window.innerWidth;
@@ -238,7 +230,6 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
           }
 
           setResult(prev => prev + event.text);
-          setResults(prev => ({ ...prev, [action]: `${prev[action] ?? ''}${event.text}` }));
         },
       });
     } catch (err) {
@@ -305,18 +296,11 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
     }
   };
 
-  const handleCopy = async (copyText: string) => {
-    await navigator.clipboard?.writeText(copyText);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1200);
-  };
-
   return (
     <div
       ref={ref}
       className={styles.popover}
       style={{ top: position.top, left: position.left, width: size.width, height: size.height }}
-      onMouseDown={event => event.preventDefault()}
     >
       <div className={styles.header} onMouseDown={handleDragStart}>
         <Text className={styles.selectedText}>{text}</Text>
@@ -354,44 +338,6 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
         >
           {buttonTextForSpeech(status)}
         </Button>
-        <Menu>
-          <MenuTrigger disableButtonEnhancement>
-            <Button
-              className={styles.moreButton}
-              size="small"
-              appearance="subtle"
-              icon={<MoreHorizontal24Regular />}
-            />
-          </MenuTrigger>
-          <MenuPopover>
-            <MenuList>
-              <MenuItem icon={<Copy24Regular />} onClick={() => handleCopy(text)}>
-                {copied ? '已复制' : '复制选中文本'}
-              </MenuItem>
-              <MenuItem
-                icon={<BookOpen24Regular />}
-                disabled={!results.explain}
-                onClick={() => results.explain && handleCopy(results.explain)}
-              >
-                复制解释
-              </MenuItem>
-              <MenuItem
-                icon={<TextBulletListSquare24Regular />}
-                disabled={!results.summary}
-                onClick={() => results.summary && handleCopy(results.summary)}
-              >
-                复制总结
-              </MenuItem>
-              <MenuItem
-                icon={<Translate24Regular />}
-                disabled={!results.translate}
-                onClick={() => results.translate && handleCopy(results.translate)}
-              >
-                复制翻译
-              </MenuItem>
-            </MenuList>
-          </MenuPopover>
-        </Menu>
       </div>
 
       {hasResultArea ? (
