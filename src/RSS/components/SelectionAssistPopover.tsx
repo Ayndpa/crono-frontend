@@ -27,13 +27,7 @@ interface SelectionAssistPopoverProps {
   text: string;
   context: string;
   articleTitle: string;
-  anchorRect: {
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-    bottom: number;
-  };
+  anchorPoint: { x: number; y: number };
   onLocate: () => void;
   onClose: () => void;
 }
@@ -146,7 +140,7 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
   text,
   context,
   articleTitle,
-  anchorRect,
+  anchorPoint,
   onLocate,
   onClose,
 }) => {
@@ -164,25 +158,15 @@ export const SelectionAssistPopover: React.FC<SelectionAssistPopoverProps> = ({
     const viewportHeight = window.innerHeight;
     const width = Math.min(420, window.innerWidth - 24);
     const height = Math.min(190, window.innerHeight - 24);
-    const gap = - viewportHeight * 0.05;
-    const availableBelow = viewportHeight - anchorRect.bottom;
-    const availableAbove = anchorRect.top;
-    const preferredTop = anchorRect.bottom + gap;
-    const flippedTop = anchorRect.top - height - gap;
-    const shouldPlaceBelow = availableBelow >= height + gap || availableBelow >= availableAbove;
-    const top = shouldPlaceBelow ? preferredTop : flippedTop;
+    const gap = 12;
 
     return {
       width,
       height,
-      left: clamp(
-        Math.max(anchorRect.left + anchorRect.width / 2 - width / 2, 12),
-        12,
-        viewportWidth - width - 12
-      ),
-      top: clamp(top, 12, viewportHeight - height - 12),
+      left: clamp(anchorPoint.x + gap, 12, viewportWidth - width - 12),
+      top: clamp(anchorPoint.y + gap, 12, viewportHeight - height - 12),
     };
-  }, [anchorRect]);
+  }, [anchorPoint]);
 
   const [position, setPosition] = useState({ top: initialBounds.top, left: initialBounds.left });
   const [size, setSize] = useState({ width: initialBounds.width, height: initialBounds.height });

@@ -34,6 +34,7 @@ interface ArticleReaderProps {
     text: string;
     context: string;
     rect: { top: number; left: number; width: number; height: number; bottom: number };
+    pointer: { x: number; y: number };
   } | null) => void;
   onClose: () => void;
   isFullscreen: boolean;
@@ -649,7 +650,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
     document.addEventListener('mouseup', handleMouseUp);
   }, [modalPosition, modalSize, setModalSize]);
 
-  const handleSelection = useCallback(() => {
+  const handleSelection = useCallback((pointer: { x: number; y: number }) => {
     window.requestAnimationFrame(() => {
       window.setTimeout(() => {
         const selection = window.getSelection();
@@ -695,7 +696,8 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
             width: rect.width,
             height: rect.height,
             bottom: rect.bottom,
-          }
+          },
+          pointer,
         });
       }, 0);
     });
@@ -706,13 +708,13 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
   }, []);
 
   useEffect(() => {
-    const handleDocumentMouseUp = () => {
+    const handleDocumentMouseUp = (event: MouseEvent) => {
       if (!selectionPendingRef.current) {
         return;
       }
 
       selectionPendingRef.current = false;
-      handleSelection();
+      handleSelection({ x: event.clientX, y: event.clientY });
     };
 
     document.addEventListener('mouseup', handleDocumentMouseUp);
@@ -856,9 +858,9 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
           <Tooltip content="AI 助手" relationship="label">
             <Button
               appearance={showAiPanel ? 'primary' : 'subtle'}
-              icon={<Sparkle24Regular style={{ color: showAiPanel ? undefined : 'var(--reader-text)' }} />}
+              icon={<Sparkle24Regular />}
               onClick={() => setShowAiPanel(!showAiPanel)}
-              style={{ color: 'var(--reader-text)' }}
+              style={showAiPanel ? undefined : { color: 'var(--reader-text)' }}
             >
               AI 助手
             </Button>

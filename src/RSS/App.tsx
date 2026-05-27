@@ -171,6 +171,7 @@ type SelectionState = {
   text: string;
   context: string;
   rect: { top: number; left: number; width: number; height: number; bottom: number };
+  pointer: { x: number; y: number };
 } | null;
 
 const getViewportBounds = () => {
@@ -441,6 +442,11 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
 
   const activeArticle = customArticle || selectedArticle;
 
+  const handleCloseAiPanel = useCallback(() => {
+    setShowAiPanel(false);
+    setSelectionState(null);
+  }, []);
+
   const handleLocateSelection = useCallback(() => {
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
@@ -646,7 +652,8 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
       {isReaderOpen && activeArticle && showAiPanel && (
         <AiAssistPanel
           article={activeArticle}
-          onClose={() => setShowAiPanel(false)}
+          isDark={isDark}
+          onClose={handleCloseAiPanel}
         />
       )}
 
@@ -655,7 +662,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
           text={selectionState.text}
           context={selectionState.context}
           articleTitle={activeArticle.title}
-          anchorRect={selectionState.rect}
+          anchorPoint={selectionState.pointer}
           onLocate={handleLocateSelection}
           onClose={() => setSelectionState(null)}
         />

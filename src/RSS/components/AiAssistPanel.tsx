@@ -1,12 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import {
   Button,
+  FluentProvider,
   Text,
   makeStyles,
   shorthands,
   Spinner,
   Tab,
   TabList,
+  webDarkTheme,
+  webLightTheme,
 } from '@fluentui/react-components';
 import { ArrowMinimize24Regular, BotSparkle24Regular } from '@fluentui/react-icons';
 import { ArticleSummary } from './ArticleSummary';
@@ -16,12 +20,20 @@ import { ArticleQA } from './ArticleQA';
 import { useLLMConfigured } from './useLLMConfigured';
 import { EditForm } from '../../Management/components/MainContent/LLM/components/EditForm/EditForm';
 import { createConfig } from '../../Management/components/MainContent/LLM/api/llmConfig';
+import { SelectionAssistPopover } from './SelectionAssistPopover';
 import type { ArticleResponse } from '../model/article';
 
 interface AiAssistPanelProps {
   article: ArticleResponse | null;  // RSS 模式：传完整 article
   url?: string;                      // 浏览器模式：只传 url
+  isDark?: boolean;
   onClose: () => void;
+  onSelectionChange?: (selection: {
+    text: string;
+    context: string;
+    rect: { top: number; left: number; width: number; height: number; bottom: number };
+    pointer: { x: number; y: number };
+  } | null) => void;
 }
 
 const PANEL_MARGIN = 16;
@@ -86,13 +98,26 @@ const useStyles = makeStyles({
   },
 });
 
-export const AiAssistPanel: React.FC<AiAssistPanelProps> = ({ article, url, onClose }) => {
+const AiAssistPanelComponent: React.FC<AiAssistPanelProps> = ({ article, url, isDark = false, onClose, onSelectionChange }) => {
   const styles = useStyles();
   const [activeTab, setActiveTab] = useState<'summary' | 'translation' | 'tts' | 'qa'>('summary');
   const [position, setPosition] = useState({ top: 60, left: 20 });
   const [size, setSize] = useState({ width: 400, height: 500 });
   const dragRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const selectionPendingRef = useRef(false);
+  const selectionPopoverRootRef = useRef<Root | null>(null);
+  const selectionPopoverContainerRef = useRef<HTMLDivElement | null>(null);
   const { configured, loading: configLoading, recheck } = useLLMConfigured();
+
+  const closeSelectionPopover = useCallback(() => {
+    selectionPopoverRootRef.current?.unmount();
+    selectionPopoverRootRef.current = null;
+    selectionPopoverContainerRef.current?.remove();
+    selectionPopoverContainerRef.current = null;
+  }, []);
+
+  useEffect(() => closeSelectionPopover, [closeSelectionPopover]);
 
   const handleDragStart = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -198,6 +223,109 @@ export const AiAssistPanel: React.FC<AiAssistPanelProps> = ({ article, url, onCl
     document.addEventListener('mouseup', handleUp);
   };
 
+  const handleSelection = useCallback((pointer: { x: number; y: number }) => {
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) {
+          onSelectionChange?.(null);
+          return;
+        }
+
+        const text = selection.toString().trim();
+        if (!text) {
+          onSelectionChange?.(null);
+          return;
+        }
+
+        const range = selection.getRangeAt(0);
+        const content = contentRef.current;
+        if (!content || !range.intersectsNode(content)) {
+          onSelectionChange?.(null);
+          return;
+        }
+
+        const rects = Array.from(range.getClientRects())
+          .filter(rect => rect.width > 0 && rect.height > 0);
+        const boundingRect = range.getBoundingClientRect();
+        const rect = boundingRect.width > 0 && boundingRect.height > 0
+          ? boundingRect
+          : rects[rects.length - 1];
+
+        if (!rect) {
+          onSelectionChange?.(null);
+          return;
+        }
+
+        const contextElement = range.commonAncestorContainer.parentElement;
+        const context = contextElement ? contextElement.textContent || text : text;
+
+        const selectionPayload = {
+          text,
+          context: context.substring(0, 1000),
+          rect: {
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+            bottom: rect.bottom,
+          },
+          pointer,
+        };
+
+        if (onSelectionChange) {
+          onSelectionChange(selectionPayload);
+          return;
+        }
+
+        closeSelectionPopover();
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const root = createRoot(container);
+        selectionPopoverContainerRef.current = container;
+        selectionPopoverRootRef.current = root;
+        root.render(
+          <FluentProvider theme={isDark ? webDarkTheme : webLightTheme}>
+            <SelectionAssistPopover
+              text={selectionPayload.text}
+              context={selectionPayload.context}
+              articleTitle={article?.title || url || 'AI 助手'}
+              anchorPoint={selectionPayload.pointer}
+              onLocate={() => {
+                const selectedElement = range.startContainer.parentElement;
+                selectedElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
+              onClose={closeSelectionPopover}
+            />
+          </FluentProvider>
+        );
+      }, 0);
+    });
+  }, [article?.title, closeSelectionPopover, isDark, onSelectionChange, url]);
+
+  const handleSelectionStart = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest('button,input,textarea,select,[contenteditable="true"],[role="tab"]')) {
+      return;
+    }
+
+    selectionPendingRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    const handleDocumentMouseUp = (event: MouseEvent) => {
+      if (!selectionPendingRef.current) {
+        return;
+      }
+
+      selectionPendingRef.current = false;
+      handleSelection({ x: event.clientX, y: event.clientY });
+    };
+
+    document.addEventListener('mouseup', handleDocumentMouseUp);
+    return () => document.removeEventListener('mouseup', handleDocumentMouseUp);
+  }, [handleSelection]);
+
   // 构造统一的 props：RSS 模式传 article，浏览器模式传 url
   const summaryProps = article
     ? { article }
@@ -232,7 +360,11 @@ export const AiAssistPanel: React.FC<AiAssistPanelProps> = ({ article, url, onCl
         <Button appearance="subtle" onClick={onClose} icon={<ArrowMinimize24Regular />} />
       </div>
 
-      <div className={styles.content}>
+      <div
+        ref={contentRef}
+        className={styles.content}
+        onMouseDown={handleSelectionStart}
+      >
         {configLoading ? (
           <Spinner size="tiny" label="检查 AI 配置..." />
         ) : configured === false ? (
@@ -264,3 +396,5 @@ export const AiAssistPanel: React.FC<AiAssistPanelProps> = ({ article, url, onCl
     </div>
   );
 };
+
+export const AiAssistPanel = React.memo(AiAssistPanelComponent);
