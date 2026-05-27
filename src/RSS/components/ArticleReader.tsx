@@ -453,26 +453,29 @@ const useStyles = makeStyles({
   }
 });
 
-const ArticleContent = React.memo(({ 
-  html, 
-  className, 
-  onMouseDown,
-  onMouseUp 
-}: { 
-  html: string; 
-  className: string; 
+const ArticleContent = React.memo(React.forwardRef<HTMLDivElement, {
+  html: string;
+  className: string;
   onMouseDown?: () => void;
-  onMouseUp?: () => void 
-}) => {
+  onMouseUp?: () => void;
+}>(({
+  html,
+  className,
+  onMouseDown,
+  onMouseUp
+}, ref) => {
   return (
     <div
+      ref={ref}
       className={className}
       dangerouslySetInnerHTML={{ __html: html }}
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
     />
   );
-});
+}));
+
+ArticleContent.displayName = 'ArticleContent';
 
 export const ArticleReader: React.FC<ArticleReaderProps> = ({
   isDark,
@@ -532,6 +535,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const articleContentRef = useRef<HTMLDivElement>(null);
   const selectionPendingRef = useRef(false);
 
   // Drag modal handler (triggered by clicking header)
@@ -592,36 +596,55 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
   }, [modalSize, setModalSize]);
 
   const handleSelection = useCallback(() => {
-    setTimeout(() => {
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed) {
-        onSelectionChange(null);
-        return;
-      }
-      
-      const text = selection.toString().trim();
-      if (!text) {
-        onSelectionChange(null);
-        return;
-      }
-
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      const contextElement = range.commonAncestorContainer.parentElement;
-      const context = contextElement ? contextElement.textContent || text : text;
-
-      onSelectionChange({
-        text,
-        context: context.substring(0, 1000),
-        rect: {
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
-          height: rect.height,
-          bottom: rect.bottom,
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) {
+          onSelectionChange(null);
+          return;
         }
-      });
-    }, 10);
+
+        const text = selection.toString().trim();
+        if (!text) {
+          onSelectionChange(null);
+          return;
+        }
+
+        const range = selection.getRangeAt(0);
+        const articleContent = articleContentRef.current;
+        if (!articleContent || !range.intersectsNode(articleContent)) {
+          onSelectionChange(null);
+          return;
+        }
+
+        const rects = Array.from(range.getClientRects())
+          .filter(rect => rect.width > 0 && rect.height > 0);
+        const boundingRect = range.getBoundingClientRect();
+        const rect = boundingRect.width > 0 && boundingRect.height > 0
+          ? boundingRect
+          : rects[rects.length - 1];
+
+        if (!rect) {
+          onSelectionChange(null);
+          return;
+        }
+
+        const contextElement = range.commonAncestorContainer.parentElement;
+        const context = contextElement ? contextElement.textContent || text : text;
+
+        onSelectionChange({
+          text,
+          context: context.substring(0, 1000),
+          rect: {
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+            bottom: rect.bottom,
+          }
+        });
+      }, 0);
+    });
   }, [onSelectionChange]);
 
   const handleSelectionStart = useCallback(() => {
@@ -929,6 +952,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
         ref={scrollContainerRef}
         className={styles.scrollContainer}
         onScroll={handleScroll}
+        onMouseDown={handleSelectionStart}
       >
         <div className={styles.articleContainer}>
           {/* Article Header (Title & Metadata) */}
@@ -976,9 +1000,9 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
             />
           ) : (
             <ArticleContent
+              ref={articleContentRef}
               className={styles.articleHtml}
               html={articleHtml ?? ''}
-              onMouseDown={handleSelectionStart}
             />
           )}
         </div>
