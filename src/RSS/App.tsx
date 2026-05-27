@@ -60,6 +60,18 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column',
   },
+  splitPane: {
+    minWidth: 0,
+    minHeight: 0,
+    height: '100%',
+    overflow: 'hidden',
+  },
+  sidebarPane: {
+    flex: '0 0 auto',
+  },
+  articlePane: {
+    flex: '1 1 0',
+  },
 });
 
 function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
@@ -102,17 +114,21 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
 
         {/* RSS 阅读视图 */}
         <div className={styles.viewContent} style={{ display: activeView === 'rss' ? 'flex' : 'none' }}>
-          <Split className="split" sizes={[20, 80]} minSize={200}>
-            <Sidebar
-              feeds={feeds}
-              onFeedSelect={fetchArticlesByFeed}
-              onShowAll={refetchArticlesFromBackend}
-            />
-            <ArticleList
-              articles={articles}
-              selectedArticleId={selectedArticle?.id || null}
-              onArticleSelect={handleArticleSelect}
-            />
+          <Split className="split" sizes={[22, 78]} minSize={220} gutterSize={8} snapOffset={0}>
+            <div className={`${styles.splitPane} ${styles.sidebarPane}`}>
+              <Sidebar
+                feeds={feeds}
+                onFeedSelect={fetchArticlesByFeed}
+                onShowAll={refetchArticlesFromBackend}
+              />
+            </div>
+            <div className={`${styles.splitPane} ${styles.articlePane}`}>
+              <ArticleList
+                articles={articles}
+                selectedArticleId={selectedArticle?.id || null}
+                onArticleSelect={handleArticleSelect}
+              />
+            </div>
           </Split>
         </div>
 

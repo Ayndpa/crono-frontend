@@ -74,13 +74,13 @@ export const ArticleList: React.FC<ArticleListProps> = ({
   onArticleSelect,
 }) => {
   const styles = useStyles();
-  const [selectedCategory] = React.useState('all');
   const [sortOrder, setSortOrder] = React.useState('newest');
   const [onlyUnread, setOnlyUnread] = React.useState(false);
   const [viewMode, setViewMode] = React.useState('card');
 
   const filteredArticles = React.useMemo(() => {
-    return articles
+    return [...articles]
+      .filter((article) => !onlyUnread || !article.is_read)
       .sort((a, b) => {
         if (sortOrder === 'newest') {
           return new Date(b.pub_date).getTime() - new Date(a.pub_date).getTime();
@@ -88,7 +88,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
           return new Date(a.pub_date).getTime() - new Date(b.pub_date).getTime();
         }
       });
-  }, [articles, selectedCategory, sortOrder, onlyUnread]);
+  }, [articles, sortOrder, onlyUnread]);
 
   if (filteredArticles.length === 0) {
     return (

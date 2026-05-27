@@ -10,6 +10,7 @@ import {
 } from '@fluentui/react-components';
 import { TagRegular, CalendarMonthRegular } from '@fluentui/react-icons';
 import type { ArticleResponse } from '../../model/article';
+import { MarkdownSummary } from './MarkdownSummary';
 
 const useStyles = makeStyles({
   listItemCard: {
@@ -94,7 +95,9 @@ export const ArticleListItem: React.FC<ArticleListItemProps> = ({ article, isSel
       <div className={styles.listItemContent}>
         <div className={styles.listItemDetails}>
           <Subtitle2Stronger className={styles.listItemTitle}>{article.title}</Subtitle2Stronger>
-          <Caption1 className={styles.listItemSummary}>{article.ai_summary}</Caption1> {/* 使用 AI 生成的总结 */}
+          {article.ai_summary ? (
+            <MarkdownSummary content={article.ai_summary} className={styles.listItemSummary} />
+          ) : null}
           <div className={styles.listFooter}>
             {article.tags?.map((tag) => (
               <Tag key={tag} appearance="outline" icon={<TagRegular />}>

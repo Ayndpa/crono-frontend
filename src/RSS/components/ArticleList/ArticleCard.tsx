@@ -4,7 +4,6 @@ import {
   CardHeader,
   CardFooter,
   Persona,
-  Text,
   makeStyles,
   tokens,
   Caption1,
@@ -12,6 +11,7 @@ import {
 } from '@fluentui/react-components';
 import { CalendarMonthRegular } from '@fluentui/react-icons';
 import type { ArticleResponse } from '../../model/article';
+import { MarkdownSummary } from './MarkdownSummary';
 
 const useStyles = makeStyles({
   verticalCard: {
@@ -89,7 +89,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, isSelected, o
         header={<Subtitle2Stronger className={styles.cardTitle}>{article.title}</Subtitle2Stronger>}
         description={
           article.ai_summary ? (
-            <Text className={styles.cardSummary}>{article.ai_summary}</Text>
+            <MarkdownSummary content={article.ai_summary} className={styles.cardSummary} />
           ) : undefined
         }
       />

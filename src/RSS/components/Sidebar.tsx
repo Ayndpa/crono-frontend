@@ -13,6 +13,10 @@ const useStyles = makeStyles({
     padding: '16px',
     display: 'flex',
     flexDirection: 'column',
+    width: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
+    overflow: 'hidden',
   },
   navItem: {
     display: 'flex',
@@ -34,7 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ feeds, onFeedSelect, onShowAll
 
   return (
     <div className={styles.sidebar}>
-      <Nav defaultSelectedValue="all">
+      <Nav defaultSelectedValue="all" style={{ width: '100%', minWidth: 0 }}>
         <NavItem
           key="all"
           as="a"
