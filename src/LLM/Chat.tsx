@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-    Avatar,
     Text,
+    Input,
     Textarea,
     Button,
     Spinner,
@@ -17,6 +17,8 @@ import {
     MessageBar,
     MessageBarTitle,
     MessageBarBody,
+    Switch,
+    Avatar,
     tokens
 } from '@fluentui/react-components';
 import {
@@ -28,8 +30,12 @@ import {
     ArrowReset24Regular,
     Add24Regular,
     Copy24Regular,
+    Edit24Regular,
     Dismiss24Regular,
-    Delete24Regular
+    Delete24Regular,
+    Chat24Regular,
+    BotSparkle24Regular,
+    Person24Regular
 } from '@fluentui/react-icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -56,7 +62,93 @@ interface Conversation {
     updatedAt: string;
 }
 
+interface ChatSettings {
+    autoTitleEnabled: boolean;
+}
+
+interface SpeechRecognitionResultLike {
+    isFinal: boolean;
+    [index: number]: { transcript: string };
+}
+
+interface SpeechRecognitionEventLike {
+    resultIndex: number;
+    results: ArrayLike<SpeechRecognitionResultLike>;
+}
+
+interface SpeechRecognitionLike {
+    lang: string;
+    continuous: boolean;
+    interimResults: boolean;
+    start: () => void;
+    stop: () => void;
+    abort: () => void;
+    onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+    onerror: ((event: { error?: string }) => void) | null;
+    onend: (() => void) | null;
+}
+
+const renderMessageIcon = (isUser: boolean) => (
+    <div
+        style={{
+            width: '32px',
+            height: '32px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'transparent',
+            color: isUser ? tokens.colorNeutralForeground2 : tokens.colorNeutralForeground2,
+            flexShrink: 0
+        }}
+    >
+        {isUser ? <Person24Regular /> : <BotSparkle24Regular />}
+    </div>
+);
+
+const renderConversationIcon = (active = false) => (
+    <div
+        style={{
+            width: '32px',
+            height: '32px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'transparent',
+            color: active ? tokens.colorNeutralForegroundInverted : tokens.colorNeutralForeground2,
+            flexShrink: 0
+        }}
+    >
+        <Chat24Regular />
+    </div>
+);
+
 const STORAGE_KEY = 'crono-chat-conversations';
+const SETTINGS_KEY = 'crono-chat-settings';
+
+const defaultChatSettings: ChatSettings = {
+    autoTitleEnabled: true
+};
+
+const loadChatSettings = (): ChatSettings => {
+    try {
+        const saved = localStorage.getItem(SETTINGS_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved) as Partial<ChatSettings>;
+            return {
+                autoTitleEnabled: parsed.autoTitleEnabled ?? defaultChatSettings.autoTitleEnabled
+            };
+        }
+    } catch (error) {
+        console.error('读取聊天设置失败:', error);
+    }
+    return defaultChatSettings;
+};
+
+const buildAutoTitle = (content: string) => {
+    const normalized = content.replace(/\s+/g, ' ').trim();
+    if (!normalized) return '新对话';
+    return normalized.length > 30 ? `${normalized.slice(0, 30)}...` : normalized;
+};
 
 const createWelcomeMessage = (): Message => ({
     id: `welcome-${Date.now()}`,
@@ -95,16 +187,23 @@ const ChatApp = () => {
     const [configsError, setConfigsError] = useState<string | null>(null);
     const [currentConfigId, setCurrentConfigId] = useState('');
     const [isRecording, setIsRecording] = useState(false);
+    const [chatSettings, setChatSettings] = useState<ChatSettings>(() => loadChatSettings());
+    const [editingConversationId, setEditingConversationId] = useState('');
+    const [editingConversationTitle, setEditingConversationTitle] = useState('');
 
     // 引用
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+    const recognitionBaseTextRef = useRef('');
+    const recognitionFinalTextRef = useRef('');
 
     const activeConversation = conversations.find(conversation => conversation.id === activeConversationId) ?? conversations[0];
     const messages = activeConversation?.messages ?? [];
-    const conversationTitle = activeConversation?.title ?? '新对话';
+    const conversationTitle = activeConversation?.title?.trim() || '新对话';
     const selectedConfig = configs.find(config => config.id.toString() === currentConfigId);
     const model = selectedConfig?.model ?? '';
+    const isEditingCurrentConversation = Boolean(activeConversation && editingConversationId === activeConversation.id);
 
     // 滚动到底部
     const scrollToBottom = () => {
@@ -119,6 +218,15 @@ const ChatApp = () => {
     useEffect(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
     }, [conversations]);
+
+    useEffect(() => {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(chatSettings));
+    }, [chatSettings]);
+
+    useEffect(() => () => {
+        recognitionRef.current?.abort();
+        recognitionRef.current = null;
+    }, []);
 
     const loadModelSettings = useCallback(async () => {
         setConfigsLoading(true);
@@ -169,6 +277,29 @@ const ChatApp = () => {
         }));
     };
 
+    const cancelTitleEditing = () => {
+        setEditingConversationId('');
+        setEditingConversationTitle('');
+    };
+
+    const startTitleEditing = () => {
+        if (!activeConversation) return;
+        setEditingConversationId(activeConversation.id);
+        setEditingConversationTitle(activeConversation.title);
+    };
+
+    const saveTitleEditing = () => {
+        if (!editingConversationId) return;
+
+        const nextTitle = editingConversationTitle.trim() || '新对话';
+        updateConversation(editingConversationId, conversation => ({
+            ...conversation,
+            title: nextTitle,
+            updatedAt: new Date().toISOString()
+        }));
+        cancelTitleEditing();
+    };
+
     // 发送消息
     const handleSend = async () => {
         if (!inputValue.trim() || isLoading || !activeConversationId) return;
@@ -185,8 +316,8 @@ const ChatApp = () => {
         };
 
         const newMessages = [...messages, userMessage];
-        const nextTitle = activeConversation?.title === '新对话'
-            ? inputValue.substring(0, 30) + (inputValue.length > 30 ? '...' : '')
+        const nextTitle = chatSettings.autoTitleEnabled && (!activeConversation?.title || activeConversation.title === '新对话')
+            ? buildAutoTitle(inputValue)
             : activeConversation?.title ?? '新对话';
         updateConversation(activeConversationId, conversation => ({
             ...conversation,
@@ -277,11 +408,77 @@ const ChatApp = () => {
 
     // 开始/停止录音
     const toggleRecording = () => {
-        setIsRecording(!isRecording);
-        // 实际应用中这里会集成语音识别API
+        const SpeechRecognition = (window as Window & {
+            SpeechRecognition?: new () => SpeechRecognitionLike;
+            webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+        }).SpeechRecognition ?? (window as Window & {
+            SpeechRecognition?: new () => SpeechRecognitionLike;
+            webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+        }).webkitSpeechRecognition;
+
+        if (!isRecording) {
+            if (!SpeechRecognition) {
+                console.error('当前浏览器不支持语音识别');
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognitionBaseTextRef.current = inputValue.trimEnd();
+            recognitionFinalTextRef.current = '';
+
+            recognition.onresult = (event) => {
+                let finalText = recognitionFinalTextRef.current;
+                let interimText = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i += 1) {
+                    const result = event.results[i];
+                    const transcript = result[0]?.transcript ?? '';
+                    if (result.isFinal) {
+                        finalText += transcript;
+                    } else {
+                        interimText += transcript;
+                    }
+                }
+
+                recognitionFinalTextRef.current = finalText;
+                const nextText = [recognitionBaseTextRef.current, finalText, interimText].filter(Boolean).join('');
+                setInputValue(nextText);
+            };
+
+            recognition.onerror = (event) => {
+                console.error('语音识别失败:', event.error ?? 'unknown');
+                setIsRecording(false);
+            };
+
+            recognition.onend = () => {
+                setIsRecording(false);
+                recognitionRef.current = null;
+            };
+
+            recognitionRef.current = recognition;
+            setIsRecording(true);
+
+            try {
+                recognition.start();
+            } catch (error) {
+                console.error('启动语音识别失败:', error);
+                recognitionRef.current = null;
+                setIsRecording(false);
+            }
+            return;
+        }
+
+        recognitionRef.current?.stop();
+        recognitionRef.current = null;
+        setIsRecording(false);
     };
 
     const startNewConversation = () => {
+        cancelTitleEditing();
         const conversation = createConversation();
         setConversations(prev => [conversation, ...prev]);
         setActiveConversationId(conversation.id);
@@ -289,6 +486,9 @@ const ChatApp = () => {
     };
 
     const deleteConversation = (conversationId: string) => {
+        if (conversationId === editingConversationId) {
+            cancelTitleEditing();
+        }
         setConversations(prev => {
             const nextConversations = prev.filter(conversation => conversation.id !== conversationId);
             if (nextConversations.length === 0) {
@@ -308,6 +508,7 @@ const ChatApp = () => {
 
     // 重置对话
     const resetConversation = () => {
+        cancelTitleEditing();
         updateConversation(activeConversationId, conversation => ({
             ...conversation,
             title: '新对话',
@@ -339,9 +540,6 @@ const ChatApp = () => {
         }
 
         const isUser = message.role === 'user';
-        const avatar = isUser
-            ? <Avatar name="您" badge={{ status: 'available' }} />
-            : <Avatar name="AI助手" badge={{ status: 'available' }} color="brand" />;
 
         return (
             <div
@@ -356,7 +554,7 @@ const ChatApp = () => {
                 }}
             >
                 <div style={{ flexShrink: 0, marginTop: '4px' }}>
-                    {avatar}
+                    {renderMessageIcon(isUser)}
                 </div>
 
                 <div
@@ -473,7 +671,7 @@ const ChatApp = () => {
                 flexDirection: 'column',
                 overflow: 'hidden'
             }}>
-                <div style={{ padding: '16px', borderBottom: `1px solid ${tokens.colorNeutralStroke1}` }}>
+                <div style={{ padding: '17px', borderBottom: `1px solid ${tokens.colorNeutralStroke1}` }}>
                         <Button
                             appearance="primary"
                             icon={<Add24Regular />}
@@ -493,7 +691,10 @@ const ChatApp = () => {
                             <Card
                                 key={conversation.id}
                                 appearance="subtle"
-                                onClick={() => setActiveConversationId(conversation.id)}
+                                onClick={() => {
+                                    cancelTitleEditing();
+                                    setActiveConversationId(conversation.id);
+                                }}
                                 style={{
                                     margin: '8px 16px',
                                     cursor: 'pointer',
@@ -504,7 +705,7 @@ const ChatApp = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <CardHeader
-                                            image={<Avatar name={conversation.title} />}
+                                                            image={renderConversationIcon(conversation.id === activeConversationId)}
                                             header={
                                                 <Text
                                                     weight="semibold"
@@ -560,15 +761,48 @@ const ChatApp = () => {
                     justifyContent: 'space-between'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Avatar name="AI助手" color="brand" />
-                        <div>
-                            <Text weight="semibold" size={400}>
-                                {conversationTitle}
+                        {renderConversationIcon()}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {isEditingCurrentConversation ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <Input
+                                        value={editingConversationTitle}
+                                        onChange={(_, data) => setEditingConversationTitle(data.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter') {
+                                                event.preventDefault();
+                                                saveTitleEditing();
+                                            }
+                                            if (event.key === 'Escape') {
+                                                event.preventDefault();
+                                                cancelTitleEditing();
+                                            }
+                                        }}
+                                        style={{ width: 'min(360px, 100%)' }}
+                                    />
+                                    <Button appearance="primary" onClick={saveTitleEditing}>
+                                        保存
+                                    </Button>
+                                    <Button appearance="subtle" icon={<Dismiss24Regular />} onClick={cancelTitleEditing} />
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <Text weight="semibold" size={400}>
+                                        {conversationTitle}
+                                    </Text>
+                                    <Tooltip content="编辑标题" relationship="label">
+                                        <Button
+                                            icon={<Edit24Regular />}
+                                            appearance="subtle"
+                                            onClick={startTitleEditing}
+                                        />
+                                    </Tooltip>
+                                </div>
+                            )}
+                            <Text size={200} style={{ opacity: 0.7 }}>
+                                {model ? `使用 ${model} 模型` : '未选择模型配置'} · 最后更新: {activeConversation ? new Date(activeConversation.updatedAt).toLocaleTimeString() : '--'}
                             </Text>
-                                <Text size={200} style={{ opacity: 0.7 }}>
-                                    {model ? `使用 ${model} 模型` : '未选择模型配置'} · 最后更新: {activeConversation ? new Date(activeConversation.updatedAt).toLocaleTimeString() : '--'}
-                                </Text>
-                            </div>
+                        </div>
                         </div>
 
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -598,7 +832,7 @@ const ChatApp = () => {
                             gap: '12px',
                             marginBottom: '18px'
                         }}>
-                            <Avatar name="AI助手" color="brand" />
+                            {renderConversationIcon()}
                             <div
                                 style={{
                                     border: `1px solid ${tokens.colorNeutralStroke2}`,
@@ -627,7 +861,7 @@ const ChatApp = () => {
                     padding: '0 24px 24px',
                     borderTop: `1px solid ${tokens.colorNeutralStroke1}`
                 }}>
-                    <MessageBar intent="info" style={{ marginBottom: '16px' }}>
+                    <MessageBar intent="info" style={{ marginTop: '16px', marginBottom: '16px' }}>
                         <MessageBarBody>
                             <MessageBarTitle>提示</MessageBarTitle>
                             您可以使用 Shift+Enter 换行，Enter 发送消息
@@ -708,35 +942,55 @@ const ChatApp = () => {
                     <Card>
                         <CardHeader
                             image={<Avatar icon={<Sparkle24Regular />} color="brand" />}
+                            header={<Text weight="semibold">标题设置</Text>}
+                        />
+                        <div style={{ padding: '0 16px 16px' }}>
+                            <Switch
+                                label="自动生成标题"
+                                checked={chatSettings.autoTitleEnabled}
+                                onChange={(_, data) => setChatSettings(prev => ({
+                                    ...prev,
+                                    autoTitleEnabled: data.checked
+                                }))}
+                            />
+                            <Text size={200} style={{ color: tokens.colorNeutralForeground3, display: 'block', marginTop: '8px' }}>
+                                基于首条消息自动命名；如果你手动修改标题，它会保留自定义内容。
+                            </Text>
+                        </div>
+                    </Card>
+
+                    <Card style={{ marginTop: '24px' }}>
+                        <CardHeader
+                            image={<Avatar icon={<Lightbulb24Regular />} />}
                             header={<Text weight="semibold">AI模型设置</Text>}
                         />
                         <div style={{ padding: '0 16px 16px' }}>
-                                <Field label="选择模型">
-                                    <select
-                                        value={currentConfigId}
-                                        onChange={(e) => handleSelectConfig(e.target.value)}
-                                        disabled={configsLoading || configs.length === 0}
-                                        style={{
-                                            width: '100%',
-                                            padding: '8px',
+                            <Field label="选择模型">
+                                <select
+                                    value={currentConfigId}
+                                    onChange={(e) => handleSelectConfig(e.target.value)}
+                                    disabled={configsLoading || configs.length === 0}
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px',
                                         borderRadius: tokens.borderRadiusMedium,
                                         border: `1px solid ${tokens.colorNeutralStroke1}`
-                                        }}
-                                    >
-                                        {configs.length === 0 && <option value="">暂无模型配置</option>}
-                                        {configs.map(config => (
-                                            <option key={config.id} value={config.id.toString()}>
-                                                {config.model}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </Field>
+                                    }}
+                                >
+                                    {configs.length === 0 && <option value="">暂无模型配置</option>}
+                                    {configs.map(config => (
+                                        <option key={config.id} value={config.id.toString()}>
+                                            {config.model}
+                                        </option>
+                                    ))}
+                                </select>
+                            </Field>
 
-                                {configsError && (
-                                    <MessageBar intent="warning" style={{ marginTop: '16px' }}>
-                                        {configsError}
-                                    </MessageBar>
-                                )}
+                            {configsError && (
+                                <MessageBar intent="warning" style={{ marginTop: '16px' }}>
+                                    {configsError}
+                                </MessageBar>
+                            )}
                             </div>
                         </Card>
 
