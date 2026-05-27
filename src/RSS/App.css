@@ -33,3 +33,26 @@
     background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
     cursor: col-resize;
 }
+
+/* Custom scrollbar styling for split panes */
+.splitPane::-webkit-scrollbar,
+.splitPane > div::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.splitPane::-webkit-scrollbar-track,
+.splitPane > div::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.splitPane::-webkit-scrollbar-thumb,
+.splitPane > div::-webkit-scrollbar-thumb {
+    background: var(--colorNeutralStroke3);
+    border-radius: 3px;
+}
+
+.splitPane::-webkit-scrollbar-thumb:hover,
+.splitPane > div::-webkit-scrollbar-thumb:hover {
+    background: var(--colorNeutralStroke2);
+}

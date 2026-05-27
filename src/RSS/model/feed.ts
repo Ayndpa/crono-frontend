@@ -3,4 +3,5 @@ export interface Feed {
     name: string;
     url: string; // HttpUrl can be represented as a string in TypeScript
     is_active?: boolean;
+    unread_count?: number;
 }

@@ -90,6 +90,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
   const [activeView, setActiveView] = useState<'rss' | 'browser' | 'chat'>('rss');
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFeedId, setSelectedFeedId] = useState<string>('all');
 
   useEffect(() => {
     setShowAiPanel(false);
@@ -126,8 +127,15 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
             <div className={`${styles.splitPane} ${styles.sidebarPane}`}>
               <Sidebar
                 feeds={feeds}
-                onFeedSelect={fetchArticlesByFeed}
-                onShowAll={refetchArticlesFromBackend}
+                selectedKey={selectedFeedId}
+                onFeedSelect={(feedId) => {
+                  fetchArticlesByFeed(feedId);
+                  setSelectedFeedId(feedId);
+                }}
+                onShowAll={() => {
+                  refetchArticlesFromBackend();
+                  setSelectedFeedId('all');
+                }}
               />
             </div>
             <div className={`${styles.splitPane} ${styles.articlePane}`}>

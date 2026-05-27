@@ -33,7 +33,6 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column',
     padding: '0px !important', // 覆盖默认内边距以实现侧边栏贴边
-    borderRadius: '12px',
     boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
     overflow: 'hidden',
   },

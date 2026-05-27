@@ -56,9 +56,27 @@ export const useRSSData = () => {
   const handleArticleSelect = async (id: number) => {
     setSelectedArticleId(id);
     setIsReaderOpen(true);
+
+    const targetArticle = articles.find(a => a.id === id);
+    const wasUnread = targetArticle && !targetArticle.is_read;
+
     setArticles(prevArticles =>
       prevArticles.map(a => (a.id === id ? { ...a, is_read: true } : a))
     );
+
+    if (wasUnread) {
+      setFeeds(prevFeeds =>
+        prevFeeds.map(f => {
+          if (f.id === targetArticle.feed_id) {
+            return {
+              ...f,
+              unread_count: Math.max(0, (f.unread_count || 0) - 1),
+            };
+          }
+          return f;
+        })
+      );
+    }
 
     try {
       const res = await apiFetch(`/rss/article/state/mark-as-read/${id}`, { method: 'POST' });
@@ -72,6 +90,9 @@ export const useRSSData = () => {
     try {
       const backendArticles = await fetchArticlesFromBackend();
       setArticles(backendArticles);
+      
+      const backendFeeds = await fetchFeedsFromBackend();
+      setFeeds(backendFeeds);
     } catch (err) {
       console.error('加载所有文章失败', err);
     }
