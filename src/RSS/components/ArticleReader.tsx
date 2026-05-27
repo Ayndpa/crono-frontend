@@ -728,7 +728,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
       >
         <div className={styles.headerLeft}>
           <Text size={300} weight="semibold" style={{ color: 'var(--reader-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px' }}>
-            {selectedArticle.author && selectedArticle.author !== '未知作者' ? selectedArticle.author : '阅读模式'}
+            {articleTitle || selectedArticle.title || '阅读模式'}
           </Text>
           {stats.wordCount > 0 && (
             <Text size={100} style={{ color: 'var(--reader-meta)', whiteSpace: 'nowrap' }}>
