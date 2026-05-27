@@ -16,6 +16,17 @@ type ValidationIssue = {
   loc?: unknown;
 };
 
+function translateErrorMessage(message: string): string {
+  const minLengthMatch = message.match(/^String should have at least (\d+) characters$/);
+  if (minLengthMatch) {
+    return `字符串长度至少应为 ${minLengthMatch[1]} 个字符`;
+  }
+
+  if (message === 'Field required') return '字段不能为空';
+
+  return message;
+}
+
 function formatErrorDetail(detail: unknown): string {
   if (typeof detail === 'string') return detail;
 
@@ -25,7 +36,7 @@ function formatErrorDetail(detail: unknown): string {
         if (!item || typeof item !== 'object') return '';
 
         const issue = item as ValidationIssue;
-        return typeof issue.msg === 'string' ? issue.msg : '';
+        return typeof issue.msg === 'string' ? translateErrorMessage(issue.msg) : '';
       })
       .filter(Boolean);
 
