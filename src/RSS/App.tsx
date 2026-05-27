@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ArticleReader } from './components/ArticleReader';
@@ -20,7 +20,7 @@ import {
   Tab,
   TabList,
 } from '@fluentui/react-components';
-import { Rss24Regular, Globe24Regular, Chat24Regular } from '@fluentui/react-icons';
+import { Rss24Regular, Globe24Regular, Chat24Regular, Sparkle24Regular } from '@fluentui/react-icons';
 import ChatApp from '../LLM/Chat';
 
 import type { AuthUser } from '../api/auth';
@@ -76,6 +76,11 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
 
   const styles = useStyles();
   const [activeView, setActiveView] = useState<'rss' | 'browser' | 'chat'>('rss');
+  const [showAiPanel, setShowAiPanel] = useState(false);
+
+  useEffect(() => {
+    setShowAiPanel(false);
+  }, [selectedArticle?.id]);
 
   return (
     <div className="app-container">
@@ -130,13 +135,24 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
           <DialogBody className={styles.dialogBody}>
             <DialogTitle>
               {selectedArticle?.title || '文章阅读器'}
-              <DialogTrigger disableButtonEnhancement>
-                <Button appearance="primary" style={{ float: 'right' }}>关闭</Button>
-              </DialogTrigger>
+              <div style={{ float: 'right', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <Button
+                  appearance="subtle"
+                  onClick={() => setShowAiPanel(v => !v)}
+                  icon={<Sparkle24Regular />}
+                >
+                  AI 助手
+                </Button>
+                <DialogTrigger disableButtonEnhancement>
+                  <Button appearance="primary">关闭</Button>
+                </DialogTrigger>
+              </div>
             </DialogTitle>
             <ArticleReader
               selectedArticle={selectedArticle}
               onToggleStar={() => { }}
+              showAiPanel={showAiPanel}
+              setShowAiPanel={setShowAiPanel}
             />
           </DialogBody>
         </DialogSurface>

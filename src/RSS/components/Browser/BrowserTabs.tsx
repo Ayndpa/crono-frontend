@@ -107,9 +107,14 @@ const useStyles = makeStyles({
   },
   content: {
     flexGrow: 1,
-    overflow: 'auto',
-    padding: '16px 24px',
+    overflow: 'hidden',
+    position: 'relative',
     backgroundColor: tokens.colorNeutralBackground1,
+  },
+  scrollContent: {
+    height: '100%',
+    overflowY: 'auto',
+    padding: '16px 24px',
   },
   centerBox: {
     display: 'flex',
@@ -298,7 +303,7 @@ export const BrowserTabs: React.FC = () => {
       </div>
 
       {/* 内容区 */}
-      <div className={styles.content} style={{ position: 'relative' }}>
+      <div className={styles.content}>
         {showAiPanel && activeTab.html && (
           <AiAssistPanel
             article={null}
@@ -307,47 +312,49 @@ export const BrowserTabs: React.FC = () => {
           />
         )}
 
-        {activeTab.loading && (
-          <div className={styles.centerBox}>
-            <Spinner size="large" label="正在抓取页面..." />
-          </div>
-        )}
+        <div className={styles.scrollContent}>
+          {activeTab.loading && (
+            <div className={styles.centerBox}>
+              <Spinner size="large" label="正在抓取页面..." />
+            </div>
+          )}
 
-        {!activeTab.loading && activeTab.error === 'captcha' && (
-          <div className={styles.centerBox}>
-            <Warning24Regular style={{ fontSize: '48px' }} />
-            <Text size={500} weight="semibold">该页面触发了验证码</Text>
-            <Text>此网站启用了反爬虫保护，无法直接抓取内容。</Text>
-            <Button
-              appearance="primary"
-              onClick={() => window.open(activeTab.url, '_blank')}
-            >
-              在浏览器中打开
-            </Button>
-          </div>
-        )}
+          {!activeTab.loading && activeTab.error === 'captcha' && (
+            <div className={styles.centerBox}>
+              <Warning24Regular style={{ fontSize: '48px' }} />
+              <Text size={500} weight="semibold">该页面触发了验证码</Text>
+              <Text>此网站启用了反爬虫保护，无法直接抓取内容。</Text>
+              <Button
+                appearance="primary"
+                onClick={() => window.open(activeTab.url, '_blank')}
+              >
+                在浏览器中打开
+              </Button>
+            </div>
+          )}
 
-        {!activeTab.loading && activeTab.error && activeTab.error !== 'captcha' && (
-          <div className={styles.centerBox}>
-            <Warning24Regular style={{ fontSize: '48px' }} />
-            <Text size={500} weight="semibold">加载失败</Text>
-            <Text>{activeTab.error}</Text>
-          </div>
-        )}
+          {!activeTab.loading && activeTab.error && activeTab.error !== 'captcha' && (
+            <div className={styles.centerBox}>
+              <Warning24Regular style={{ fontSize: '48px' }} />
+              <Text size={500} weight="semibold">加载失败</Text>
+              <Text>{activeTab.error}</Text>
+            </div>
+          )}
 
-        {!activeTab.loading && !activeTab.error && activeTab.html && (
-          <div
-            className={styles.articleHtml}
-            dangerouslySetInnerHTML={{ __html: activeTab.html }}
-          />
-        )}
+          {!activeTab.loading && !activeTab.error && activeTab.html && (
+            <div
+              className={styles.articleHtml}
+              dangerouslySetInnerHTML={{ __html: activeTab.html }}
+            />
+          )}
 
-        {!activeTab.loading && !activeTab.error && !activeTab.html && (
-          <div className={styles.centerBox}>
-            <Globe24Regular style={{ fontSize: '48px' }} />
-            <Text size={500}>在地址栏输入网址开始浏览</Text>
-          </div>
-        )}
+          {!activeTab.loading && !activeTab.error && !activeTab.html && (
+            <div className={styles.centerBox}>
+              <Globe24Regular style={{ fontSize: '48px' }} />
+              <Text size={500}>在地址栏输入网址开始浏览</Text>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

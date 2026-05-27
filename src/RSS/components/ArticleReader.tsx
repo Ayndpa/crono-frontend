@@ -1,13 +1,11 @@
   import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Button,
   makeStyles,
   Persona,
   shorthands,
   Spinner,
   Text,
 } from '@fluentui/react-components';
-import { Sparkle24Regular } from '@fluentui/react-icons';
 import { AiAssistPanel } from './AiAssistPanel';
 import { SelectionAssistPopover } from './SelectionAssistPopover';
 import type { ArticleResponse } from '../model/article';
@@ -17,20 +15,23 @@ import DOMPurify from 'dompurify';
 interface ArticleReaderProps {
   selectedArticle: ArticleResponse | null;
   onToggleStar: (id: number) => void;
+  showAiPanel: boolean;
+  setShowAiPanel: (show: boolean) => void;
 }
 
 const useStyles = makeStyles({
   root: {
-    overflowY: 'auto',
     height: '100%',
     position: 'relative', // 添加相对定位作为悬浮窗容器
     display: 'flex',
     flexDirection: 'column',
+    overflow: 'hidden',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    overflowY: 'auto',
   },
   persona: {
-    ...shorthands.margin('0', '0', '12px', '0'),
-  },
-  buttonContainer: {
     ...shorthands.margin('0', '0', '12px', '0'),
   },
   separator: {
@@ -102,9 +103,10 @@ const ArticleContent = React.memo(({
 
 export const ArticleReader: React.FC<ArticleReaderProps> = ({
   selectedArticle,
+  showAiPanel,
+  setShowAiPanel,
 }) => {
   const styles = useStyles();
-  const [showAiPanel, setShowAiPanel] = useState(false);
 
   // 文章内容抓取状态
   const [articleHtml, setArticleHtml] = useState<string | null>(null);
@@ -181,50 +183,41 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
     <div className={styles.root}>
       {selectedArticle ? (
         <>
-          <Persona
-            className={styles.persona}
-            name={selectedArticle.author || '未知作者'}
-            size="medium"
-            secondaryText={new Date(selectedArticle.pub_date).toLocaleDateString()}
-            avatar={{ color: 'colorful' }}
-          />
-          <div className={styles.buttonContainer}>
-            <Button
-              appearance="subtle"
-              onClick={() => setShowAiPanel(!showAiPanel)}
-              icon={<Sparkle24Regular />}
-              style={{ marginLeft: '8px' }}
-            >
-              AI 助手
-            </Button>
-          </div>
+          <div className={styles.scrollContainer}>
+            <Persona
+              className={styles.persona}
+              name={selectedArticle.author || '未知作者'}
+              size="medium"
+              secondaryText={new Date(selectedArticle.pub_date).toLocaleDateString()}
+              avatar={{ color: 'colorful' }}
+            />
+            <div className={styles.separator} style={{ marginBottom: '12px' }} />
 
-          <div className={styles.separator} />
+            {/* 文章内容区域：加载中 / 渲染 HTML / 降级 iframe */}
+            {loadingContent ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
+                <Spinner label="正在加载文章内容..." />
+              </div>
+            ) : useFallbackIframe ? (
+              <iframe
+                src={String(selectedArticle.link)}
+                title={selectedArticle.title}
+                className={styles.iframe}
+                sandbox="allow-scripts allow-same-origin"
+              />
+            ) : (
+              <ArticleContent
+                className={styles.articleHtml}
+                html={articleHtml ?? ''}
+                onMouseUp={handleSelection}
+              />
+            )}
+          </div>
 
           {showAiPanel && (
             <AiAssistPanel
               article={selectedArticle}
               onClose={() => setShowAiPanel(false)}
-            />
-          )}
-
-          {/* 文章内容区域：加载中 / 渲染 HTML / 降级 iframe */}
-          {loadingContent ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
-              <Spinner label="正在加载文章内容..." />
-            </div>
-          ) : useFallbackIframe ? (
-            <iframe
-              src={String(selectedArticle.link)}
-              title={selectedArticle.title}
-              className={styles.iframe}
-              sandbox="allow-scripts allow-same-origin"
-            />
-          ) : (
-            <ArticleContent
-              className={styles.articleHtml}
-              html={articleHtml ?? ''}
-              onMouseUp={handleSelection}
             />
           )}
 
