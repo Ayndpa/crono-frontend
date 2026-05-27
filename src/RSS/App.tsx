@@ -89,6 +89,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
   const styles = useStyles();
   const [activeView, setActiveView] = useState<'rss' | 'browser' | 'chat'>('rss');
   const [showAiPanel, setShowAiPanel] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setShowAiPanel(false);
@@ -96,7 +97,14 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
 
   return (
     <div className="app-container">
-      <Header isDark={isDark} toggleTheme={toggleTheme} user={user} onLogout={onLogout} />
+      <Header
+        isDark={isDark}
+        toggleTheme={toggleTheme}
+        user={user}
+        onLogout={onLogout}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+      />
 
       <div className={styles.mainArea}>
         {/* 视图切换标签 */}
@@ -127,6 +135,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
                 articles={articles}
                 selectedArticleId={selectedArticle?.id || null}
                 onArticleSelect={handleArticleSelect}
+                searchQuery={searchQuery}
               />
             </div>
           </Split>

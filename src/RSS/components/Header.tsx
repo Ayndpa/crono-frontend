@@ -55,11 +55,20 @@ const useStyles = makeStyles({
   }
 });
 
-export const Header = ({ isDark: _isDark, toggleTheme, user, onLogout }: {
+export const Header = ({
+  isDark: _isDark,
+  toggleTheme,
+  user,
+  onLogout,
+  searchQuery,
+  onSearchQueryChange,
+}: {
   isDark: boolean;
   toggleTheme: () => void;
   user: AuthUser;
   onLogout: () => void;
+  searchQuery: string;
+  onSearchQueryChange: (value: string) => void;
 }) => {
   const styles = useStyles();
 
@@ -75,6 +84,8 @@ export const Header = ({ isDark: _isDark, toggleTheme, user, onLogout }: {
             placeholder="搜索文章..."
             appearance="underline"
             className={styles.searchBox}
+            value={searchQuery}
+            onChange={(_, data) => onSearchQueryChange(data.value)}
           />
         </ToolbarGroup>
 
