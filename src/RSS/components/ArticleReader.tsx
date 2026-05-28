@@ -365,7 +365,10 @@ const useStyles = makeStyles({
   iframe: {
     width: '100%',
     height: '100%',
+    minHeight: '100%',
+    display: 'block',
     border: 'none',
+    backgroundColor: '#ffffff',
   },
   placeholderContainer: {
     textAlign: 'center',
@@ -746,7 +749,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
   }, [articleHtml]);
 
   // Load/Fetch article content function (with bypass_cache option)
-  const loadContent = useCallback((bypassCache: boolean = false) => {
+  const loadContent = useCallback((bypassCache: boolean = false, llmFallback: boolean = false) => {
     if (!selectedArticle?.link) return;
 
     setLoadingContent(true);
@@ -755,6 +758,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
       body: JSON.stringify({
         url: String(selectedArticle.link),
         bypass_cache: bypassCache,
+        llm_fallback: llmFallback,
       }),
     })
       .then(res => res.json())
@@ -774,10 +778,11 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
 
   // Reload article content (force refetch from server by bypassing cache)
   const handleReload = useCallback(() => {
+    const shouldUseLlmFallback = Boolean(articleHtml && !useFallbackIframe);
     setUseFallbackIframe(false);
     setArticleHtml(null);
-    loadContent(true);
-  }, [loadContent]);
+    loadContent(true, shouldUseLlmFallback);
+  }, [articleHtml, loadContent, useFallbackIframe]);
 
   // Reset and Refetch when selectedArticle changes
   useEffect(() => {
@@ -1010,58 +1015,57 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({
         onScroll={handleScroll}
         onMouseDown={handleSelectionStart}
       >
-        <div className={styles.articleContainer}>
-          {/* Article Header (Title & Metadata) */}
-          <div className={styles.articleHeader}>
-            <h1 className={styles.articleTitle}>{articleTitle}</h1>
-            <div className={styles.metaContainer}>
-              {selectedArticle.author && selectedArticle.author !== '未知作者' && (
-                <>
-                  <div className={styles.metaItem}>
-                    <span>作者：{selectedArticle.author}</span>
-                  </div>
-                  <div className={styles.metaDivider} />
-                </>
-              )}
-              <div className={styles.metaItem}>
-                <span>时间：{new Date(selectedArticle.pub_date).toLocaleString()}</span>
-              </div>
-              <div className={styles.metaDivider} />
-              <div className={styles.metaItem}>
-                <a
-                  href={selectedArticle.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.originalLink}
-                >
-                  查看原文 <Open24Regular style={{ fontSize: '14px', marginLeft: '2px' }} />
-                </a>
-              </div>
-            </div>
+        {loadingContent ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '100px 0' }}>
+            <Spinner label="正在全力加载文章内容..." />
           </div>
-
-          <div className={styles.separator} />
-
-          {/* Article content or fallback */}
-          {loadingContent ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '100px 0' }}>
-              <Spinner label="正在全力加载文章内容..." />
+        ) : useFallbackIframe ? (
+          <iframe
+            src={String(selectedArticle.link)}
+            title={selectedArticle.title}
+            className={styles.iframe}
+            sandbox="allow-scripts allow-same-origin"
+          />
+        ) : (
+          <div className={styles.articleContainer}>
+            {/* Article Header (Title & Metadata) */}
+            <div className={styles.articleHeader}>
+              <h1 className={styles.articleTitle}>{articleTitle}</h1>
+              <div className={styles.metaContainer}>
+                {selectedArticle.author && selectedArticle.author !== '未知作者' && (
+                  <>
+                    <div className={styles.metaItem}>
+                      <span>作者：{selectedArticle.author}</span>
+                    </div>
+                    <div className={styles.metaDivider} />
+                  </>
+                )}
+                <div className={styles.metaItem}>
+                  <span>时间：{new Date(selectedArticle.pub_date).toLocaleString()}</span>
+                </div>
+                <div className={styles.metaDivider} />
+                <div className={styles.metaItem}>
+                  <a
+                    href={selectedArticle.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.originalLink}
+                  >
+                    查看原文 <Open24Regular style={{ fontSize: '14px', marginLeft: '2px' }} />
+                  </a>
+                </div>
+              </div>
             </div>
-          ) : useFallbackIframe ? (
-            <iframe
-              src={String(selectedArticle.link)}
-              title={selectedArticle.title}
-              className={styles.iframe}
-              sandbox="allow-scripts allow-same-origin"
-            />
-          ) : (
+
+            <div className={styles.separator} />
+
             <ArticleContent
               ref={articleContentRef}
               className={styles.articleHtml}
               html={articleHtml ?? ''}
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Back to top floating button */}
