@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Feed } from './model/feed';
 import type { ArticleResponse } from './model/article';
 import { apiFetch } from '../api/client';
@@ -86,19 +86,28 @@ export const useRSSData = () => {
     }
   };
 
-  const refetchArticlesFromBackend = async (): Promise<void> => {
+  const refreshFeedsFromBackend = useCallback(async (): Promise<void> => {
+    try {
+      const backendFeeds = await fetchFeedsFromBackend();
+      setFeeds(backendFeeds);
+    } catch (err) {
+      console.error('加载订阅源失败', err);
+    }
+  }, []);
+
+  const refetchArticlesFromBackend = useCallback(async (): Promise<void> => {
     try {
       const backendArticles = await fetchArticlesFromBackend();
       setArticles(backendArticles);
-      
+
       const backendFeeds = await fetchFeedsFromBackend();
       setFeeds(backendFeeds);
     } catch (err) {
       console.error('加载所有文章失败', err);
     }
-  };
+  }, []);
 
-  const fetchArticlesByFeed = async (feedId: string): Promise<void> => {
+  const fetchArticlesByFeed = useCallback(async (feedId: string): Promise<void> => {
     try {
       const res = await apiFetch(`/rss/article/${feedId}`);
       if (!res.ok) throw new Error('Failed to fetch articles by feed');
@@ -107,7 +116,17 @@ export const useRSSData = () => {
     } catch (err) {
       console.error('按订阅源加载文章失败', err);
     }
-  };
+  }, []);
+
+  const refreshVisibleArticles = useCallback(async (feedId: string): Promise<void> => {
+    if (feedId === 'all') {
+      await refetchArticlesFromBackend();
+      return;
+    }
+
+    await fetchArticlesByFeed(feedId);
+    await refreshFeedsFromBackend();
+  }, [fetchArticlesByFeed, refetchArticlesFromBackend, refreshFeedsFromBackend]);
 
   return {
     articles,
@@ -119,5 +138,7 @@ export const useRSSData = () => {
     fetchArticlesByFeed,
     fetchArticlesFromBackend,
     refetchArticlesFromBackend,
+    refreshVisibleArticles,
+    refreshFeedsFromBackend,
   };
 };

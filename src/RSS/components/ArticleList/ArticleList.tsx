@@ -126,7 +126,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
             checked={onlyUnread}
             onChange={(_e, data) => setOnlyUnread(data.checked)}
           />
-          <Toolbar>
+          <Toolbar style={{ gap: '2px' }}>
             <Tooltip content="卡片视图" relationship="label">
               <Button
                 appearance={viewMode === 'card' ? 'primary' : 'secondary'}

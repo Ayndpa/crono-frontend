@@ -25,6 +25,7 @@ interface ArticleSummaryProps {
     article: ArticleResponse | null;
     /** 浏览器模式：无 article 时直接传 url */
     url?: string;
+    onSummaryGenerated?: () => void;
 }
 
 // 1. 使用 makeStyles 定义样式
@@ -124,7 +125,7 @@ const normalizeSummaryText = (text: string) => {
     return withMarkdownLinks.replace(/\\r\\n|\\n|\\r/g, '\n');
 };
 
-export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) => {
+export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url, onSummaryGenerated }) => {
     // 2. 调用 useStyles hook 获取 styles
     const styles = useStyles();
 
@@ -171,6 +172,10 @@ export const ArticleSummary: React.FC<ArticleSummaryProps> = ({ article, url }) 
                 accumulatedContent += event.text;
                 setSummary(normalizeSummaryText(accumulatedContent));
             });
+
+            if (accumulatedContent.trim()) {
+                onSummaryGenerated?.();
+            }
         } catch (err) {
             console.error('Failed to fetch summary:', err);
             setError((err as Error).message || '发生未知错误，无法生成摘要。');

@@ -123,9 +123,10 @@ interface ManagementDialogProps {
   /** 受控模式：外部控制打开状态 */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onDataChanged?: () => void;
 }
 
-const ManagementDialog: React.FC<ManagementDialogProps> = ({ open, onOpenChange }) => {
+const ManagementDialog: React.FC<ManagementDialogProps> = ({ open, onOpenChange, onDataChanged }) => {
   const styles = useStyles();
   const [internalOpen, setInternalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'feeds' | 'llm'>('overview');
@@ -211,7 +212,7 @@ const ManagementDialog: React.FC<ManagementDialogProps> = ({ open, onOpenChange 
                       添加、修改或删除您的 RSS 订阅源，并可手动触发单个或全部订阅源刷新。
                     </p>
                   </div>
-                  <FeedsSetting />
+                  <FeedsSetting onDataChanged={onDataChanged} />
                 </>
               )}
 

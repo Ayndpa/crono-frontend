@@ -11,10 +11,13 @@ import { SelectionAssistPopover } from './components/SelectionAssistPopover';
 import Split from 'react-split';
 import './App.css';
 import { useRSSData } from './useApp';
+import { apiFetch } from '../api/client';
 
 import {
   Button,
   Input,
+  MessageBar,
+  MessageBarBody,
   Text,
   makeStyles,
   shorthands,
@@ -157,6 +160,20 @@ const useStyles = makeStyles({
     maxHeight: 'calc(100vh - 32px)',
     ...shorthands.borderRadius('12px'),
   },
+  newArticlesNotice: {
+    position: 'fixed',
+    top: '64px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    zIndex: 1003,
+    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.16)',
+    ...shorthands.borderRadius('8px'),
+  },
+  newArticlesNoticeBody: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
 });
 
 const MODAL_MARGIN = 16;
@@ -223,6 +240,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
     setIsReaderOpen,
     fetchArticlesByFeed,
     refetchArticlesFromBackend,
+    refreshVisibleArticles,
   } = useRSSData();
 
   const styles = useStyles();
@@ -232,6 +250,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
   const [showArticleSearch, setShowArticleSearch] = useState(false);
   const [articleSearchQuery, setArticleSearchQuery] = useState('');
   const [selectedFeedId, setSelectedFeedId] = useState<string>('all');
+  const [newArticlesCount, setNewArticlesCount] = useState(0);
   const [sidebarSplitSizes, setSidebarSplitSizes] = useState<[number, number]>(() => readSavedSidebarSplitSizes());
 
   // Custom article for URLs opened via helper reader
@@ -288,6 +307,24 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
     ));
   }, [isFullscreen, modalPosition]);
 
+  const refreshCurrentArticleList = useCallback(async () => {
+    await refreshVisibleArticles(selectedFeedId);
+    setNewArticlesCount(0);
+  }, [refreshVisibleArticles, selectedFeedId]);
+
+  const fetchCurrentArticleSnapshot = useCallback(async (): Promise<ArticleResponse[]> => {
+    const endpoint = selectedFeedId === 'all'
+      ? '/rss/article/latest?limit=50'
+      : `/rss/article/${selectedFeedId}`;
+    const response = await apiFetch(endpoint);
+    if (!response.ok) {
+      throw new Error(`文章检查失败：${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.articles || [];
+  }, [selectedFeedId]);
+
   const syncModalToViewport = useCallback(() => {
     if (isFullscreen) return;
 
@@ -326,6 +363,28 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
   useEffect(() => {
     localStorage.setItem(SIDEBAR_SPLIT_STORAGE_KEY, JSON.stringify(sidebarSplitSizes));
   }, [sidebarSplitSizes]);
+
+  useEffect(() => {
+    setNewArticlesCount(0);
+  }, [selectedFeedId]);
+
+  useEffect(() => {
+    const checkNewArticles = async () => {
+      if (document.hidden) return;
+
+      try {
+        const backendArticles = await fetchCurrentArticleSnapshot();
+        const visibleIds = new Set(articles.map(article => article.id));
+        const nextCount = backendArticles.filter(article => !visibleIds.has(article.id)).length;
+        setNewArticlesCount(nextCount);
+      } catch (error) {
+        console.error('检查新文章失败:', error);
+      }
+    };
+
+    const intervalId = window.setInterval(checkNewArticles, 30000);
+    return () => window.clearInterval(intervalId);
+  }, [articles, fetchCurrentArticleSnapshot]);
 
   // Center modal window upon open (only if no custom position/size settings are saved)
   useEffect(() => {
@@ -464,7 +523,19 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
         user={user}
         onLogout={onLogout}
         onOpenArticleSearch={handleOpenArticleSearch}
+        onDataChanged={refreshCurrentArticleList}
       />
+
+      {newArticlesCount > 0 && (
+        <MessageBar intent="info" className={styles.newArticlesNotice}>
+          <MessageBarBody className={styles.newArticlesNoticeBody}>
+            <Text weight="semibold">发现 {newArticlesCount} 篇新文章</Text>
+            <Button size="small" appearance="primary" icon={<Rss24Regular />} onClick={refreshCurrentArticleList}>
+              查看{newArticlesCount}篇新文章
+            </Button>
+          </MessageBarBody>
+        </MessageBar>
+      )}
 
       <div className={styles.mainArea}>
         {/* 视图切换标签 */}
@@ -654,6 +725,7 @@ function App({ isDark, toggleTheme, user, onLogout }: AppProps) {
           article={activeArticle}
           isDark={isDark}
           onClose={handleCloseAiPanel}
+          onSummaryGenerated={refreshCurrentArticleList}
         />
       )}
 

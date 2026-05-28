@@ -61,12 +61,14 @@ export const Header = ({
   user,
   onLogout,
   onOpenArticleSearch,
+  onDataChanged,
 }: {
   isDark: boolean;
   toggleTheme: () => void;
   user: AuthUser;
   onLogout: () => void;
   onOpenArticleSearch: () => void;
+  onDataChanged?: () => void;
 }) => {
   const styles = useStyles();
 
@@ -98,7 +100,7 @@ export const Header = ({
               onClick={toggleTheme}
             />
           </Tooltip>
-          <ManagementDialog />
+          <ManagementDialog onDataChanged={onDataChanged} />
           <Menu>
             <MenuTrigger>
               <Avatar name={user.username} color="brand" style={{ cursor: 'pointer' }} />

@@ -90,7 +90,11 @@ const useStyles = makeStyles({
 });
 
 // --- 主要组件 ---
-const FeedsSetting = () => {
+interface FeedsSettingProps {
+    onDataChanged?: () => void;
+}
+
+const FeedsSetting = ({ onDataChanged }: FeedsSettingProps) => {
     const styles = useStyles();
     const [feeds, setFeeds] = useState<Feed[]>([]);
     const [refreshingFeedId, setRefreshingFeedId] = useState<number | null>(null);
@@ -109,10 +113,16 @@ const FeedsSetting = () => {
         fetchFeeds();
     }, []);
 
+    const handleDataChanged = async () => {
+        await fetchFeeds();
+        onDataChanged?.();
+    };
+
     const handleRefreshFeed = async (feedId: number) => {
         setRefreshingFeedId(feedId);
         try {
             await apiFetch(`/rss/updater/refresh/${feedId}`, { method: 'POST' });
+            await handleDataChanged();
         } catch (error) {
             console.error('刷新失败:', error);
         } finally {
@@ -124,7 +134,7 @@ const FeedsSetting = () => {
         setRefreshingAll(true);
         try {
             await apiFetch('/rss/updater/refresh/all', { method: 'POST' });
-            fetchFeeds();
+            await handleDataChanged();
         } catch (error) {
             console.error('刷新全部订阅源失败:', error);
         } finally {
@@ -134,7 +144,7 @@ const FeedsSetting = () => {
 
     const columns = (
         styles: ReturnType<typeof useStyles>,
-        fetchFeeds: () => Promise<void>
+        onDataChanged: () => Promise<void>
     ): TableColumnDefinition<Feed>[] => [
         {
             columnId: 'name',
@@ -179,12 +189,12 @@ const FeedsSetting = () => {
                                 <Button size="small" icon={<Edit24Regular />} aria-label="编辑" />
                             </Tooltip>
                         }
-                        onSuccess={fetchFeeds}
+                        onSuccess={onDataChanged}
                     />
                     <DeleteConfirm
                         itemName={item.name}
                         feedId={item.id ?? 0}
-                        onSuccess={fetchFeeds}
+                        onSuccess={onDataChanged}
                     />
                     <Tooltip content={refreshingFeedId === item.id ? '正在刷新...' : '刷新'} relationship="label">
                         <Button
@@ -211,7 +221,7 @@ const FeedsSetting = () => {
                                 添加订阅
                             </Button>
                         }
-                        onSuccess={fetchFeeds}
+                        onSuccess={handleDataChanged}
                     />
                     <Tooltip content={refreshingAll ? '正在刷新...' : '刷新全部订阅源'} relationship="label">
                         <Button
@@ -226,7 +236,7 @@ const FeedsSetting = () => {
 
                 <DataGrid
                     items={feeds}
-                    columns={columns(styles, fetchFeeds)}
+                    columns={columns(styles, handleDataChanged)}
                     getRowId={(item) => item.id}
                     aria-label="RSS订阅源列表"
                 >

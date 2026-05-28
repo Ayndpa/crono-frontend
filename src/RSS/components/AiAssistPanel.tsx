@@ -28,6 +28,7 @@ interface AiAssistPanelProps {
   url?: string;                      // 浏览器模式：只传 url
   isDark?: boolean;
   onClose: () => void;
+  onSummaryGenerated?: () => void;
   onSelectionChange?: (selection: {
     text: string;
     context: string;
@@ -98,7 +99,7 @@ const useStyles = makeStyles({
   },
 });
 
-const AiAssistPanelComponent: React.FC<AiAssistPanelProps> = ({ article, url, isDark = false, onClose, onSelectionChange }) => {
+const AiAssistPanelComponent: React.FC<AiAssistPanelProps> = ({ article, url, isDark = false, onClose, onSummaryGenerated, onSelectionChange }) => {
   const styles = useStyles();
   const [activeTab, setActiveTab] = useState<'summary' | 'translation' | 'tts' | 'qa'>('summary');
   const [position, setPosition] = useState({ top: 60, left: 20 });
@@ -328,8 +329,8 @@ const AiAssistPanelComponent: React.FC<AiAssistPanelProps> = ({ article, url, is
 
   // 构造统一的 props：RSS 模式传 article，浏览器模式传 url
   const summaryProps = article
-    ? { article }
-    : { article: null, url: url || '' };
+    ? { article, onSummaryGenerated }
+    : { article: null, url: url || '', onSummaryGenerated };
 
   const translationProps = article
     ? { article }
